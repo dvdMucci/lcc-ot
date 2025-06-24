@@ -1,0 +1,11 @@
+django
+mysqlclient  
+python-dotenv
+Pillow
+django-otp
+django-environ
+django-two-factor-auth[phonenumbers]
+qrcode
+pyotp
+django-otp
+djangorestframework
