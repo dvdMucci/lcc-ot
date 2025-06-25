@@ -8,5 +8,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', dashboard, name='dashboard'), # Redirección de la raíz al dashboard
     path('dashboard/', dashboard, name='dashboard'),
+    path('clients/', include('clients.urls')), # Incluye las URLs de la aplicación 'clients'
     path('accounts/', include('accounts.urls')), # Incluye las URLs de la aplicación 'accounts'
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

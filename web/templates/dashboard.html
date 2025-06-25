@@ -85,7 +85,23 @@
     </div>
     {% endif %}
 </div>
-
+{% if user.user_type in 'admin,supervisor,operador' %}
+    <div class="col-md-6 col-lg-3">
+        <div class="card bg-secondary text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Total Clientes</h5>
+                        <p class="h4">{{ client_count }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-address-book fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -101,6 +117,9 @@
                     <li>Integración con Telegram (Chat ID)</li>
                     {% if user.can_manage_users %}
                     <li>Gestión de usuarios</li>
+                    {% endif %}
+                    {% if user.user_type in 'admin,supervisor,operador' %}
+                    <li>Gestión de clientes</li>
                     {% endif %}
                 </ul>
             </div>
