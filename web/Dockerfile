@@ -24,4 +24,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia el resto del código de tu aplicación al contenedor
 COPY . .
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Damos permisos de ejecución
+RUN chmod +x /app/wait-for-db.sh
+

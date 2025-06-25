@@ -18,3 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia los archivos del bot al contenedor
 COPY . .
+
+# Damos permisos de ejecución
+RUN chmod +x /app/wait-for-db.sh
