@@ -2,9 +2,9 @@
 FROM python:3.11-slim
 
 # Evita que Python escriba archivos .pyc
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONDONTWRITEBYTECODE=1
 # Asegura que la salida de Python se muestre en la terminal sin buffer
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y netcat-openbsd gcc htop default-libmysqlclient-dev python3-dev pkg-config && rm -rf /var/lib/apt/lists/*
 

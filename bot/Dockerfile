@@ -1,8 +1,8 @@
 # Usa la misma imagen base para consistencia
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Instala ffmpeg y dependencias necesarias
 RUN apt-get update && apt-get install -y ffmpeg netcat-openbsd && rm -rf /var/lib/apt/lists/*
