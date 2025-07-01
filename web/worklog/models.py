@@ -21,6 +21,7 @@ class WorkLog(models.Model):
     work_order = models.CharField(max_length=50, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    audio_file = models.FileField(upload_to='worklog_audios/', null=True, blank=True)
 
     def duration(self):
         return round((self.end - self.start).total_seconds() / 3600, 2)  # Horas redondeadas

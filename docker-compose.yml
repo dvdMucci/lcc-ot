@@ -44,6 +44,8 @@ services:
     restart: always
     volumes:
       - ./bot:/app
+      - ./web/media/worklog_audios:/app/audio_uploads  # Carpeta compartida entre web y bot
+      - ./web:/app/web  # <--- este monta el código Django dentro del contenedor del bot
     command: ["./wait-for-db.sh", "python", "bot.py"]
     env_file:
       - ./.env

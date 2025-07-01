@@ -1,11 +1,67 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4">
-    <h2>Registrar horas de trabajo</h2>
+    <h2>Registrar tarea</h2>
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn btn-primary">Guardar</button>
+
+        <div class="mb-3">
+            <label for="id_start" class="form-label">Fecha y hora de inicio</label>
+            {{ form.start }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_end" class="form-label">Fecha y hora de finalización</label>
+            {{ form.end }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_task_type" class="form-label">Tipo de tarea</label>
+            {{ form.task_type }}
+        </div>
+
+        <div class="mb-3" id="other-type-container" style="display:none;">
+            <label for="id_other_task_type" class="form-label">Especificar otro tipo</label>
+            {{ form.other_task_type }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_description" class="form-label">Descripción detallada</label>
+            {{ form.description }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_collaborator" class="form-label">Colaborador (si corresponde)</label>
+            {{ form.collaborator }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_work_order" class="form-label">Orden de trabajo (opcional)</label>
+            {{ form.work_order }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Guardar tarea
+        </button>
+        <a href="{% url 'worklog-list' %}" class="btn btn-secondary">
+            Cancelar
+        </a>
     </form>
 </div>
+
+{% block extra_js %}
+<script>
+    function toggleOtherField() {
+        const tipo = document.getElementById("id_task_type").value;
+        const contenedorOtros = document.getElementById("other-type-container");
+        contenedorOtros.style.display = (tipo === "Otros") ? "block" : "none";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const tipoSelect = document.getElementById("id_task_type");
+        tipoSelect.addEventListener("change", toggleOtherField);
+        toggleOtherField(); // mostrar u ocultar al cargar por si ya está seleccionado
+    });
+</script>
+{% endblock %}
 {% endblock %}

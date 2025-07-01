@@ -1,3 +1,5 @@
 python-telegram-bot
-mysql-connector-python 
+Django
+whisper
+torch
 python-dotenv

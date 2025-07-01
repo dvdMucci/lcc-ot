@@ -1,53 +1,98 @@
-import time
-import logging
 import os
-from datetime import datetime
+import django
+import logging
+from datetime import timedelta
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Inicializa Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'web.settings')  # Ajustá el nombre del proyecto si no es "core"
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+django.setup()
 
-logger = logging.getLogger('TestBot')
+from accounts.models import CustomUser
+from worklog.models import WorkLog
+from django.utils import timezone
 
-def main():
-    """Función principal del bot"""
-    logger.info("🤖 Bot iniciado correctamente")
-    logger.info(f"📝 Variables de entorno disponibles: {len(os.environ)}")
-    
-    # Mostrar algunas variables de entorno importantes
-    env_vars = ['HOSTNAME', 'USER', 'PATH', 'HOME']
-    for var in env_vars:
-        value = os.getenv(var, 'No definida')
-        logger.info(f"🔧 {var}: {value}")
-    
-    counter = 0
-    
+# Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Verifica si el chat_id está autorizado
+def get_user_from_chat(chat_id):
     try:
-        while True:
-            counter += 1
-            current_time = datetime.now().strftime("%H:%M:%S")
-            
-            logger.info(f"✅ Bot ejecutándose - Ciclo #{counter} - Hora: {current_time}")
-            
-            # Simular algún trabajo
-            if counter % 5 == 0:
-                logger.info(f"🔄 Ejecutando tarea especial en ciclo #{counter}")
-            
-            if counter % 10 == 0:
-                logger.info(f"📊 Estado del sistema: OK - Uptime: {counter * 30} segundos")
-            
-            # Esperar 30 segundos
-            time.sleep(30)
-            
-    except KeyboardInterrupt:
-        logger.info("⏹️  Bot detenido por el usuario")
-    except Exception as e:
-        logger.error(f"❌ Error inesperado: {e}")
-        raise
-    finally:
-        logger.info("🛑 Bot finalizado")
+        return CustomUser.objects.get(telegram_chat_id=chat_id)
+    except CustomUser.DoesNotExist:
+        return None
+
+# /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = get_user_from_chat(chat_id)
+
+    if user:
+        await update.message.reply_text(f"Hola {user.get_full_name()} 👷‍♂️\nUsá /tareas para ver tus tareas o /nueva_tarea para crear una.")
+    else:
+        await update.message.reply_text("🚫 No estás autorizado. Agregá tu chat ID en tu perfil desde la web.")
+
+# /tareas
+async def tareas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = get_user_from_chat(chat_id)
+
+    if not user:
+        await update.message.reply_text("🚫 No estás autorizado.")
+        return
+
+    hoy = timezone.now()
+    hace_un_mes = hoy - timedelta(days=30)
+    tareas = WorkLog.objects.filter(technician=user, start__gte=hace_un_mes).order_by('-start')
+
+    if not tareas.exists():
+        await update.message.reply_text("No tenés tareas cargadas en el último mes.")
+        return
+
+    buttons = []
+    for tarea in tareas:
+        texto = f"{tarea.start.strftime('%d-%m %H:%M')} - {tarea.description[:40]}"
+        buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_tarea:{tarea.id}")])
+
+    await update.message.reply_text("📋 Tareas del último mes:", reply_markup=InlineKeyboardMarkup(buttons))
+
+# Muestra detalle al tocar una tarea
+async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data.startswith("ver_tarea:"):
+        tarea_id = int(query.data.split(":")[1])
+        try:
+            tarea = WorkLog.objects.get(id=tarea_id)
+            mensaje = (
+                f"🧑 Técnico: {tarea.technician.get_full_name()}\n"
+                f"📆 Inicio: {tarea.start.strftime('%Y-%m-%d %H:%M')}\n"
+                f"📆 Fin: {tarea.end.strftime('%Y-%m-%d %H:%M')}\n"
+                f"⏱️ Duración: {tarea.duration()} hs\n"
+                f"🔧 Tipo: {tarea.task_type} {'('+tarea.other_task_type+')' if tarea.task_type == 'Otros' else ''}\n"
+                f"📝 Descripción:\n{tarea.description}"
+            )
+            await query.edit_message_text(mensaje)
+        except WorkLog.DoesNotExist:
+            await query.edit_message_text("⚠️ La tarea no existe.")
+
+# Main
+def main():
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TOKEN:
+        raise Exception("TELEGRAM_BOT_TOKEN no definido en .env")
+
+    application = Application.builder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("tareas", tareas))
+    application.add_handler(telegram.ext.CallbackQueryHandler(callback_query_handler))
+
+    logger.info("Bot iniciado...")
+    application.run_polling()
 
 if __name__ == "__main__":
     main()

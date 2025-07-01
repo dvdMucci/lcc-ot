@@ -68,7 +68,23 @@
                     {{ log.task_type }}
                     {% if log.task_type == "Otros" %} ({{ log.other_task_type }}){% endif %}
                 </td>
-                <td>{{ log.description|truncatewords:20 }}</td>
+                <td>
+                    <div style="cursor: pointer;" onclick="copyToClipboard('{{ log.description|escapejs }}')">
+                        <i class="fas fa-copy text-primary"></i> {{ log.description|truncatewords:20 }}
+                    </div>
+
+                {% if log.audio_file %}
+                    <audio controls class="mt-2" style="width: 100%;">
+                        <source src="{{ log.audio_file.url }}" type="audio/ogg">
+                        Tu navegador no soporta la reproducción de audio.
+                    </audio>
+                    <div class="mt-1">
+                    <a href="{{ log.audio_file.url }}" download class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-download"></i> Descargar audio
+                    </a>
+                </div>
+                {% endif %}
+                </td>
                 <td>{{ log.duration }} hs</td>
             </tr>
         {% empty %}
@@ -79,10 +95,7 @@
 
     {% if worklogs %}
     <div class="alert alert-info">
-        <strong>Total de horas mostradas:</strong>
-        {{
-            worklogs|map(attribute='duration')|sum
-        }} hs
+        <strong>Total de horas mostradas:</strong> {{ total_horas }} hs
     </div>
     {% endif %}
 </div>
