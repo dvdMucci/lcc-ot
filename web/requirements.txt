@@ -9,3 +9,4 @@ qrcode
 pyotp
 django-otp
 djangorestframework
+openpyxl

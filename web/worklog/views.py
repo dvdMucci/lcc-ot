@@ -3,6 +3,58 @@ from django.views.generic import ListView, CreateView
 from django.urls import reverse_lazy
 from .models import WorkLog
 from .forms import WorkLogForm
+import datetime
+from django.http import HttpResponse
+from openpyxl import Workbook
+
+# al final de views.py
+def export_worklogs_excel(request):
+    user = request.user
+
+    if not user.is_authenticated:
+        return HttpResponse(status=403)
+
+    if not (user.is_staff or user.user_type in ['admin', 'supervisor', 'tecnico']):
+        return HttpResponse(status=403)
+
+    # Filtrar datos
+    if user.is_staff or user.user_type in ['admin', 'supervisor']:
+        logs = WorkLog.objects.all().order_by('-start')
+    else:
+        logs = WorkLog.objects.filter(technician=user).order_by('-start')
+
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Horas Técnicas"
+
+    # Encabezados
+    ws.append([
+        "Técnico", "Colaborador", "Inicio", "Fin", "Duración (hs)", 
+        "Tipo", "Otro tipo", "Descripción", "Orden de trabajo"
+    ])
+
+    for log in logs:
+        ws.append([
+            str(log.technician),
+            str(log.collaborator) if log.collaborator else '',
+            log.start.strftime("%Y-%m-%d %H:%M"),
+            log.end.strftime("%Y-%m-%d %H:%M"),
+            log.duration(),
+            log.task_type,
+            log.other_task_type or '',
+            log.description,
+            log.work_order or ''
+        ])
+
+    # Preparar respuesta
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"horas_tecnicos_{datetime.date.today()}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+
+    wb.save(response)
+    return response
+
 
 class IsStaffMixin(UserPassesTestMixin):
     def test_func(self):
@@ -28,3 +80,50 @@ class WorkLogListView(LoginRequiredMixin, ListView):
         if user.is_staff or user.is_superuser:
             return WorkLog.objects.all().order_by('-start')
         return WorkLog.objects.filter(technician=user).order_by('-start')
+    
+def export_worklogs_excel(request):
+    user = request.user
+
+    if not user.is_authenticated:
+        return HttpResponse(status=403)
+
+    if not (user.is_staff or user.user_type in ['admin', 'supervisor', 'tecnico']):
+        return HttpResponse(status=403)
+
+    # Filtrar datos
+    if user.is_staff or user.user_type in ['admin', 'supervisor']:
+        logs = WorkLog.objects.all().order_by('-start')
+    else:
+        logs = WorkLog.objects.filter(technician=user).order_by('-start')
+
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Horas Técnicas"
+
+    # Encabezados
+    ws.append([
+        "Técnico", "Colaborador", "Inicio", "Fin", "Duración (hs)", 
+        "Tipo", "Otro tipo", "Descripción", "Orden de trabajo"
+    ])
+
+    for log in logs:
+        ws.append([
+            str(log.technician),
+            str(log.collaborator) if log.collaborator else '',
+            log.start.strftime("%Y-%m-%d %H:%M"),
+            log.end.strftime("%Y-%m-%d %H:%M"),
+            log.duration(),
+            log.task_type,
+            log.other_task_type or '',
+            log.description,
+            log.work_order or ''
+        ])
+
+    # Preparar respuesta
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"horas_tecnicos_{datetime.date.today()}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+
+    wb.save(response)
+    return response

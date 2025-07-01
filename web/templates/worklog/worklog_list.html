@@ -2,6 +2,14 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Historial de tareas</h2>
+    <div class="mb-3">
+    <a href="{% url 'worklog-create' %}" class="btn btn-success">
+        <i class="fas fa-plus-circle"></i> Nueva tarea
+    </a>
+    <a href="{% url 'worklog-export' %}" class="btn btn-outline-primary">
+        <i class="fas fa-file-excel"></i> Exportar a Excel
+    </a>
+</div>
     <table class="table table-bordered">
         <thead>
             <tr>
