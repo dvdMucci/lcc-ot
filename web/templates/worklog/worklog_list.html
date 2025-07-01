@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Historial de tareas</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Técnico</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>Horas</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for log in worklogs %}
+            <tr>
+                <td>{{ log.technician }}</td>
+                <td>{{ log.start }}</td>
+                <td>{{ log.end }}</td>
+                <td>
+                    {{ log.task_type }}
+                    {% if log.task_type == "Otros" %} ({{ log.other_task_type }}){% endif %}
+                </td>
+                <td>{{ log.description|truncatewords:20 }}</td>
+                <td>{{ log.duration }} hs</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6">No hay tareas registradas.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

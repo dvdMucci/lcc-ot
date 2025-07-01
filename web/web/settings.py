@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ['*']
 INSTALLED_APPS = [
     'rest_framework',
     'accounts',
+    'worlog',
     'core',
     'clients',
     'django.contrib.admin',
