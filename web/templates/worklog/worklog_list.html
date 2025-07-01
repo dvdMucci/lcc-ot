@@ -2,14 +2,51 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Historial de tareas</h2>
+
     <div class="mb-3">
-    <a href="{% url 'worklog-create' %}" class="btn btn-success">
-        <i class="fas fa-plus-circle"></i> Nueva tarea
-    </a>
-    <a href="{% url 'worklog-export' %}" class="btn btn-outline-primary">
-        <i class="fas fa-file-excel"></i> Exportar a Excel
-    </a>
-</div>
+        <a href="{% url 'worklog-create' %}" class="btn btn-success">
+            <i class="fas fa-plus-circle"></i> Nueva tarea
+        </a>
+        <a href="{% url 'worklog-export' %}?{{ request.GET.urlencode }}" class="btn btn-outline-primary">
+            <i class="fas fa-file-excel"></i> Exportar a Excel
+        </a>
+    </div>
+
+    <!-- Formulario de filtros -->
+    <form method="get" class="mb-4">
+        <div class="row">
+            {% if user.is_staff or user.user_type in 'admin,supervisor' %}
+            <div class="col-md-3">
+                {{ filter_form.technician.label_tag }} {{ filter_form.technician }}
+            </div>
+            {% endif %}
+            <div class="col-md-3">
+                {{ filter_form.task_type.label_tag }} {{ filter_form.task_type }}
+            </div>
+            <div class="col-md-3">
+                {{ filter_form.date.label_tag }} {{ filter_form.date }}
+            </div>
+            <div class="col-md-3">
+                {{ filter_form.week.label_tag }} {{ filter_form.week }}
+            </div>
+            <div class="col-md-3 mt-2">
+                {{ filter_form.month.label_tag }} {{ filter_form.month }}
+            </div>
+            <div class="col-md-3 mt-2">
+                {{ filter_form.start_date.label_tag }} {{ filter_form.start_date }}
+            </div>
+            <div class="col-md-3 mt-2">
+                {{ filter_form.end_date.label_tag }} {{ filter_form.end_date }}
+            </div>
+            <div class="col-md-3 mt-4">
+                <button class="btn btn-outline-primary mt-2" type="submit">
+                    <i class="fas fa-filter"></i> Filtrar
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Tabla de resultados -->
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -39,5 +76,14 @@
         {% endfor %}
         </tbody>
     </table>
+
+    {% if worklogs %}
+    <div class="alert alert-info">
+        <strong>Total de horas mostradas:</strong>
+        {{
+            worklogs|map(attribute='duration')|sum
+        }} hs
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

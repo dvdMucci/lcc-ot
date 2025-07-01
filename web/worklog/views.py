@@ -2,8 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView
 from django.urls import reverse_lazy
 from .models import WorkLog
-from .forms import WorkLogForm
+from .forms import WorkLogForm, WorkLogFilterForm
+from django.utils.timezone import make_aware
 import datetime
+from datetime import datetime, timedelta
 from django.http import HttpResponse
 from openpyxl import Workbook
 
@@ -145,3 +147,45 @@ def export_worklogs_excel(request):
 
     wb.save(response)
     return response
+
+class WorkLogListView(LoginRequiredMixin, ListView):
+    model = WorkLog
+    template_name = 'worklog/worklog_list.html'
+    context_object_name = 'worklogs'
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = WorkLog.objects.all() if user.is_staff or user.user_type in ['admin', 'supervisor'] else WorkLog.objects.filter(technician=user)
+
+        form = WorkLogFilterForm(self.request.GET or None)
+
+        if form.is_valid():
+            technician = form.cleaned_data.get('technician')
+            task_type = form.cleaned_data.get('task_type')
+            date = form.cleaned_data.get('date')
+            week = form.cleaned_data.get('week')
+            month = form.cleaned_data.get('month')
+            start_date = form.cleaned_data.get('start_date')
+            end_date = form.cleaned_data.get('end_date')
+
+            if technician:
+                queryset = queryset.filter(technician=technician)
+            if task_type:
+                queryset = queryset.filter(task_type=task_type)
+            if date:
+                queryset = queryset.filter(start__date=date)
+            if week:
+                end_of_week = week + timedelta(days=6)
+                queryset = queryset.filter(start__date__range=(week, end_of_week))
+            if month:
+                queryset = queryset.filter(start__year=month.year, start__month=month.month)
+            if start_date and end_date:
+                queryset = queryset.filter(start__date__range=(start_date, end_date))
+
+        self.filter_form = form
+        return queryset.order_by('-start')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['filter_form'] = getattr(self, 'filter_form', WorkLogFilterForm())
+        return context

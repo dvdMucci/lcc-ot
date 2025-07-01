@@ -1,5 +1,26 @@
 from django import forms
 from .models import WorkLog
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class WorkLogFilterForm(forms.Form):
+    technician = forms.ModelChoiceField(
+        queryset=User.objects.all(),
+        required=False,
+        label="Técnico"
+    )
+    task_type = forms.ChoiceField(
+        choices=[('', '---------')] + WorkLog.TASK_TYPES,
+        required=False,
+        label="Tipo de tarea"
+    )
+    date = forms.DateField(required=False, label="Día", widget=forms.DateInput(attrs={'type': 'date'}))
+    week = forms.DateField(required=False, label="Semana (inicio)", widget=forms.DateInput(attrs={'type': 'date'}))
+    month = forms.DateField(required=False, label="Mes", widget=forms.DateInput(attrs={'type': 'month'}))
+    start_date = forms.DateField(required=False, label="Desde", widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(required=False, label="Hasta", widget=forms.DateInput(attrs={'type': 'date'}))
+
 
 class WorkLogForm(forms.ModelForm):
     class Meta:
