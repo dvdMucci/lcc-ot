@@ -40,6 +40,14 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if user.user_type in 'admin,supervisor,tecnico' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'worklog-list' %}">
+                            <i class="fas fa-clock"></i> Horas Técnicos
+                        </a>
+                    </li>
+                    {% endif %}
+
                 </ul>
                 
                 <ul class="navbar-nav">
