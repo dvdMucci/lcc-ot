@@ -68,7 +68,25 @@ class WorkLogCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.technician = self.request.user
-        return super().form_valid(form)
+        response = super().form_valid(form)
+
+        # Crear copia para colaborador, si existe
+        collaborator = form.cleaned_data.get('collaborator')
+        if collaborator:
+            # Clonamos los datos para el colaborador
+            WorkLog.objects.create(
+                technician=collaborator,
+                collaborator=self.request.user,  # opcional: registrar quién lo cargó
+                start=form.instance.start,
+                end=form.instance.end,
+                task_type=form.instance.task_type,
+                other_task_type=form.instance.other_task_type,
+                description=form.instance.description,
+                work_order=form.instance.work_order,
+            )
+
+        return response
+
 
 class WorkLogListView(LoginRequiredMixin, ListView):
     model = WorkLog
