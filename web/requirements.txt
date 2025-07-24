@@ -10,3 +10,6 @@ pyotp
 django-otp
 djangorestframework
 openpyxl
+python-telegram-bot
+whisper
+torch

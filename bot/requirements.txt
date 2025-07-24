@@ -1,5 +1,2 @@
 python-telegram-bot
-Django
-whisper
-torch
 python-dotenv
