@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'accounts',
     'worklog',
+    'work_order',
     'core',
     'clients',
     'django.contrib.admin',

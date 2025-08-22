@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ object.numero }} – {{ object.titulo }}</h1>
+      <div class="text-muted">Cliente: <strong>{{ object.cliente }}</strong></div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'work_order:update' object.pk %}">Editar</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Detalle</h5>
+          <dl class="row mb-0">
+            <dt class="col-sm-3">Prioridad</dt><dd class="col-sm-9">{{ object.get_prioridad_display }}</dd>
+            <dt class="col-sm-3">Estado</dt><dd class="col-sm-9">{{ object.get_estado_display }}</dd>
+            <dt class="col-sm-3">Asignado a</dt><dd class="col-sm-9">{{ object.asignado_a|default:"—" }}</dd>
+            <dt class="col-sm-3">Fecha límite</dt><dd class="col-sm-9">{{ object.fecha_limite|date:"d/m/Y H:i"|default:"—" }}</dd>
+          </dl>
+          {% if object.descripcion %}
+          <hr>
+          <p class="mb-0">{{ object.descripcion|linebreaks }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Tareas asociadas</h5>
+          {% if tareas %}
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Técnico</th>
+                  <th>Descripción</th>
+                  <th>Horas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in tareas %}
+                <tr>
+                  <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+                  <td>{{ t.user }}</td>
+                  <td>{{ t.description|default:t.notes|default:"—" }}</td>
+                  <td>{{ t.hours|default:t.duration|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+            <div class="text-muted">No hay tareas registradas para esta orden.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Metadatos</h5>
+          <ul class="list-unstyled mb-0">
+            <li><strong>Creada:</strong> {{ object.fecha_creacion|date:"d/m/Y H:i" }}</li>
+            <li><strong>Actualizada:</strong> {{ object.actualizado_en|date:"d/m/Y H:i" }}</li>
+            <li><strong>Cerrada:</strong> {{ object.fecha_cierre|date:"d/m/Y H:i"|default:"—" }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

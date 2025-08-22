@@ -1,5 +1,9 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from work_order.models import WorkOrder
+work_order_ref = models.ForeignKey(
+    WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="worklogs"
+)
 
 User = get_user_model()
 

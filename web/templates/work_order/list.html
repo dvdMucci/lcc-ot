@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Órdenes de Trabajo</h1>
+    <a class="btn btn-primary" href="{% url 'work_order:create' %}">Nueva OT</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Número</th>
+          <th>Cliente</th>
+          <th>Título</th>
+          <th>Estado</th>
+          <th>Asignado</th>
+          <th>Creación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in object_list %}
+        <tr>
+          <td><a href="{% url 'work_order:detail' o.pk %}">{{ o.numero }}</a></td>
+          <td>{{ o.cliente }}</td>
+          <td>{{ o.titulo }}</td>
+          <td><span class="badge bg-secondary">{{ o.get_estado_display }}</span></td>
+          <td>{{ o.asignado_a|default:"—" }}</td>
+          <td>{{ o.fecha_creacion|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted">Sin órdenes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
