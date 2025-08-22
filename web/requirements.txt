@@ -11,5 +11,5 @@ django-otp
 djangorestframework
 openpyxl
 python-telegram-bot
-whisper
+openai-whisper
 torch
