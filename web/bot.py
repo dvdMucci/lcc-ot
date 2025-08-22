@@ -28,8 +28,8 @@ def get_whisper_model():
     global WHISPER_MODEL
     if WHISPER_MODEL is None:
         try:
-            # Modelo base: buen balance entre velocidad/calidad en CPU
-            WHISPER_MODEL = whisper.load_model("base")
+            # Modelo small: mejor precisión manteniendo velocidad razonable
+            WHISPER_MODEL = whisper.load_model("small")
         except Exception as e:
             logging.getLogger(__name__).error(f"No se pudo cargar el modelo Whisper: {e}")
             WHISPER_MODEL = None
