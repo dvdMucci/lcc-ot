@@ -99,7 +99,14 @@
                             <label for="{{ form.description.id_for_label }}" class="form-label">
                                 <i class="fas fa-align-left"></i> {{ form.description.label }}
                             </label>
-                            {{ form.description }}
+                            <div class="d-flex align-items-start">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="copyToClipboard('{{ form.description.value|default:""|escapejs }}')" title="Copiar descripción">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <div class="flex-grow-1">
+                                    {{ form.description }}
+                                </div>
+                            </div>
                             {% if form.description.errors %}
                                 <div class="text-danger">
                                     {% for error in form.description.errors %}
@@ -174,5 +181,48 @@ document.addEventListener('DOMContentLoaded', function() {
     taskTypeField.addEventListener('change', toggleOtherTaskType);
     toggleOtherTaskType(); // Ejecutar al cargar la página
 });
+
+function copyToClipboard(text) {
+    // Crear un elemento temporal para copiar el texto
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        // Mostrar notificación de éxito
+        showNotification('Descripción copiada al portapapeles', 'success');
+    } catch (err) {
+        // Fallback para navegadores modernos
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('Descripción copiada al portapapeles', 'success');
+        }).catch(err => {
+            showNotification('Error al copiar: ' + err, 'error');
+        });
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+function showNotification(message, type) {
+    // Crear notificación personalizada
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
 </script>
 {% endblock %}

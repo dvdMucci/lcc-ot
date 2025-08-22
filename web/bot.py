@@ -20,6 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import time
 from datetime import timedelta
 import whisper
+import asyncio
 
 # Cargar modelo Whisper una sola vez
 WHISPER_MODEL = None
@@ -250,33 +251,22 @@ async def enter_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
             relative_path = os.path.relpath(audio_save_path, settings.MEDIA_ROOT)
             context.user_data['audio_file_relative'] = relative_path
 
-            # Transcribir con Whisper
-            model = get_whisper_model()
-            if model is None:
-                logger.error("Modelo Whisper no disponible. Usando marcador de audio adjunto.")
-                description = "[Audio adjunto]"
-            else:
-                try:
-                    await update.message.reply_text("📝 Transcribiendo el audio, por favor esperá unos segundos...")
-                    result = model.transcribe(audio_save_path, language="es", fp16=False)
-                    text = (result or {}).get('text', '').strip()
-                    if text:
-                        description = text
-                        await update.message.reply_text(f"🗒️ Transcripción: {text[:400]}")
-                    else:
-                        description = "[Audio adjunto]"
-                        await update.message.reply_text("⚠️ No se pudo extraer texto del audio. Se adjuntará el archivo.")
-                except Exception as e:
-                    logger.error(f"Error transcribiendo con Whisper: {e}")
-                    description = "[Audio adjunto]"
-                    await update.message.reply_text("⚠️ Hubo un problema al transcribir. Se adjuntará el audio igualmente.")
+            # Iniciar transcripción en segundo plano y continuar inmediatamente
+            description = "[Audio adjunto - Transcribiendo...]"
+            context.user_data['pending_transcription'] = audio_save_path
+            
+            # Mensaje inmediato para el usuario
+            await update.message.reply_text("🎵 Audio recibido! Continuando con la tarea...")
+            
+            # Iniciar transcripción en segundo plano
+            asyncio.create_task(process_transcription_background(update.effective_chat.id, audio_save_path, context))
         else:
             await update.message.reply_text("Por favor, enviá la descripción como texto o audio.")
             return ENTERING_DESCRIPTION
 
         context.user_data['description'] = description
 
-        # Preguntar ESTADO
+        # Preguntar ESTADO inmediatamente
         status_choices = WorkLog._meta.get_field('status').choices
         buttons = [[InlineKeyboardButton(label, callback_data=f"status:{value}")] for value, label in status_choices]
         buttons.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])
@@ -289,6 +279,41 @@ async def enter_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error en enter_description: {e}")
         await update.message.reply_text("❌ Error al procesar la descripción. Intenta de nuevo.")
         return ENTERING_DESCRIPTION
+
+async def process_transcription_background(chat_id: int, audio_path: str, context: ContextTypes.DEFAULT_TYPE):
+    """Procesa la transcripción en segundo plano y actualiza el contexto"""
+    try:
+        model = get_whisper_model()
+        if model is None:
+            logger.error("Modelo Whisper no disponible para transcripción en segundo plano")
+            return
+        
+        # Transcribir el audio
+        result = model.transcribe(audio_path, language="es", fp16=False)
+        text = (result or {}).get('text', '').strip()
+        
+        if text:
+            # Actualizar la descripción en el contexto
+            context.user_data['description'] = text
+            context.user_data['transcription_complete'] = True
+            
+            # Notificar al usuario que la transcripción está lista
+            try:
+                from telegram import Bot
+                bot = Bot(token=os.getenv('TELEGRAM_BOT_TOKEN'))
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=f"✅ Transcripción lista: {text[:200]}{'...' if len(text) > 200 else ''}"
+                )
+            except Exception as e:
+                logger.error(f"Error enviando notificación de transcripción: {e}")
+        else:
+            logger.warning("No se pudo extraer texto del audio en transcripción en segundo plano")
+            
+    except Exception as e:
+        logger.error(f"Error en transcripción en segundo plano: {e}")
+        # En caso de error, mantener la descripción como "[Audio adjunto]"
+        context.user_data['description'] = "[Audio adjunto]"
 
 async def select_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -424,10 +449,18 @@ async def save_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         duration_td = context.user_data.get('duration_td', timedelta())
         start_time = end_time - duration_td
         task_type = context.user_data['task_type']
-        description = context.user_data['description']
         status_value = context.user_data.get('status', 'pendiente')
         collaborator = context.user_data.get('collaborator')
         audio_file_relative = context.user_data.get('audio_file_relative')
+        
+        # Usar la transcripción completa si está disponible
+        final_description = context.user_data.get('description')
+        if context.user_data.get('transcription_complete') and context.user_data.get('pending_transcription'):
+            # Si la transcripción se completó, usar el texto transcrito
+            final_description = context.user_data.get('description')
+        elif context.user_data.get('pending_transcription'):
+            # Si aún está transcribiendo, mantener el marcador
+            final_description = "[Audio adjunto - Transcribiendo...]"
         
         # Guardar la tarea
         worklog = WorkLog.objects.create(
@@ -436,7 +469,7 @@ async def save_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
             start=start_time,
             end=end_time,
             task_type=task_type,
-            description=description,
+            description=final_description,
             status=status_value,
             created_by=user,
             audio_file=audio_file_relative if audio_file_relative else None,

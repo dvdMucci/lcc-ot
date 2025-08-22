@@ -2,6 +2,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
+from django.db.models import Q
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
@@ -204,7 +205,10 @@ class WorkLogListView(LoginRequiredMixin, ListView):
             end_date = form.cleaned_data.get('end_date')
 
             if technician:
-                queryset = queryset.filter(technician=technician)
+                # Filtrar por técnico (creador) O colaborador
+                queryset = queryset.filter(
+                    Q(technician=technician) | Q(collaborator=technician)
+                )
             if task_type:
                 queryset = queryset.filter(task_type=task_type)
             if status:
@@ -255,7 +259,10 @@ def export_worklogs_excel(request):
         end_date = form.cleaned_data.get('end_date')
 
         if technician:
-            logs = logs.filter(technician=technician)
+            # Filtrar por técnico (creador) O colaborador
+            logs = logs.filter(
+                Q(technician=technician) | Q(collaborator=technician)
+            )
         if task_type:
             logs = logs.filter(task_type=task_type)
         if status:
