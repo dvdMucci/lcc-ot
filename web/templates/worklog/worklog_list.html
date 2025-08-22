@@ -24,9 +24,12 @@
                 {{ filter_form.task_type.label_tag }} {{ filter_form.task_type }}
             </div>
             <div class="col-md-3">
-                {{ filter_form.date.label_tag }} {{ filter_form.date }}
+                {{ filter_form.status.label_tag }} {{ filter_form.status }}
             </div>
             <div class="col-md-3">
+                {{ filter_form.date.label_tag }} {{ filter_form.date }}
+            </div>
+            <div class="col-md-3 mt-2">
                 {{ filter_form.week.label_tag }} {{ filter_form.week }}
             </div>
             <div class="col-md-3 mt-2">
@@ -54,41 +57,71 @@
                 <th>Inicio</th>
                 <th>Fin</th>
                 <th>Tipo</th>
+                <th>Estado</th>
                 <th>Descripción</th>
                 <th>Horas</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
         {% for log in worklogs %}
             <tr>
                 <td>{{ log.technician }}</td>
-                <td>{{ log.start }}</td>
-                <td>{{ log.end }}</td>
+                <td>{{ log.start|date:"d/m/Y H:i" }}</td>
+                <td>{{ log.end|date:"d/m/Y H:i" }}</td>
                 <td>
                     {{ log.task_type }}
                     {% if log.task_type == "Otros" %} ({{ log.other_task_type }}){% endif %}
                 </td>
                 <td>
-                    <div style="cursor: pointer;" onclick="copyToClipboard('{{ log.description|escapejs }}')">
-                        <i class="fas fa-copy text-primary"></i> {{ log.description|truncatewords:20 }}
+                    <span class="badge bg-{% if log.status == 'pendiente' %}warning{% elif log.status == 'en_proceso' %}info{% elif log.status == 'completada' %}success{% else %}secondary{% endif %}">
+                        {{ log.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="copyToClipboard('{{ log.description|escapejs }}')" title="Copiar descripción">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <span class="text-truncate" style="max-width: 200px;" title="{{ log.description }}">
+                            {{ log.description|truncatewords:15 }}
+                        </span>
+
+                        {% if log.audio_file %}
+                            <a href="{{ log.audio_file.url }}" download class="btn btn-sm btn-outline-secondary ms-2" title="Descargar audio">
+                                <i class="fas fa-volume-up"></i>
+                            </a>
+                        {% endif %}
                     </div>
 
-                {% if log.audio_file %}
-                    <audio controls class="mt-2" style="width: 100%;">
-                        <source src="{{ log.audio_file.url }}" type="audio/ogg">
-                        Tu navegador no soporta la reproducción de audio.
-                    </audio>
-                    <div class="mt-1">
-                    <a href="{{ log.audio_file.url }}" download class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-download"></i> Descargar audio
-                    </a>
-                </div>
-                {% endif %}
+                    {% if log.audio_file %}
+                        <!-- Sin reproductor en lista; solo descarga con ícono -->
+                    {% endif %}
                 </td>
                 <td>{{ log.duration }} hs</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'worklog-detail' log.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalles">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        
+                        {% if user.is_staff or user.user_type in 'admin,supervisor' or log.created_by == user or log.technician == user %}
+                            <a href="{% url 'worklog-edit' log.pk %}" class="btn btn-sm btn-outline-warning" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        {% endif %}
+                        
+                        {% if user.is_staff or user.user_type in 'admin,supervisor' %}
+                            <a href="{% url 'worklog-delete' log.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" 
+                               onclick="return confirm('¿Estás seguro de que quieres eliminar esta tarea?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </td>
             </tr>
         {% empty %}
-            <tr><td colspan="6">No hay tareas registradas.</td></tr>
+            <tr><td colspan="8">No hay tareas registradas.</td></tr>
         {% endfor %}
         </tbody>
     </table>
@@ -99,4 +132,49 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function copyToClipboard(text) {
+    // Crear un elemento temporal para copiar el texto
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        // Mostrar notificación de éxito
+        showNotification('Descripción copiada al portapapeles', 'success');
+    } catch (err) {
+        // Fallback para navegadores modernos
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('Descripción copiada al portapapeles', 'success');
+        }).catch(err => {
+            showNotification('Error al copiar: ' + err, 'error');
+        });
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+function showNotification(message, type) {
+    // Crear notificación personalizada
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
+</script>
 {% endblock %}

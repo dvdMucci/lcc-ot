@@ -14,10 +14,28 @@ from telegram.ext import (
     filters,
 )
 from django.utils import timezone
-from django.conf import settings # Para acceder a MEDIA_ROOT
+from django.conf import settings
+from django.db import connection
+from django.core.exceptions import ObjectDoesNotExist
+import time
+from datetime import timedelta
+import whisper
+
+# Cargar modelo Whisper una sola vez
+WHISPER_MODEL = None
+
+def get_whisper_model():
+    global WHISPER_MODEL
+    if WHISPER_MODEL is None:
+        try:
+            # Modelo base: buen balance entre velocidad/calidad en CPU
+            WHISPER_MODEL = whisper.load_model("base")
+        except Exception as e:
+            logging.getLogger(__name__).error(f"No se pudo cargar el modelo Whisper: {e}")
+            WHISPER_MODEL = None
+    return WHISPER_MODEL
 
 # Inicializa Django
-# Asegúrate de que 'web.settings' sea el path correcto a tu archivo settings.py
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'web.settings')
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 django.setup()
@@ -25,227 +43,429 @@ django.setup()
 from accounts.models import CustomUser
 from worklog.models import WorkLog
 
-# Importar aquí tu función de transcripción.
-# Por ahora, usaré un placeholder. ¡Necesitarás implementarla!
-# Ejemplo: from .audio_processor import transcribe_audio
-def transcribe_audio_placeholder(audio_file_path):
-    """
-    Función placeholder para transcribir audio.
-    Deberás reemplazarla con una implementación real (ej. con Google Speech-to-Text, Whisper, etc.).
-    """
-    logger.info(f"Transcribiendo audio de: {audio_file_path}")
-    # Simula una transcripción
-    return "Esta es una transcripción de prueba del audio."
-
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # --- Constantes para los estados de la conversación ---
-SELECTING_TASK_TYPE, ENTERING_DESCRIPTION, ENTERING_DURATION = range(3)
+SELECTING_TASK_TYPE, ENTERING_DESCRIPTION, SELECTING_STATUS, ENTERING_DURATION, ASK_COLLABORATOR, SELECTING_COLLABORATOR = range(6)
 
 # --- Funciones Auxiliares ---
 def get_user_from_chat(chat_id):
+    """Obtiene el usuario desde el chat_id con manejo de errores de conexión"""
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            # Verificar si la conexión está activa
+            if connection.connection is None or not connection.is_usable():
+                connection.close()
+                connection.ensure_connection()
+            
+            return CustomUser.objects.get(telegram_chat_id=chat_id)
+        except Exception as e:
+            logger.error(f"Error al obtener usuario (intento {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                try:
+                    connection.close()
+                    connection.ensure_connection()
+                except:
+                    pass
+            else:
+                logger.error(f"Falló al obtener usuario después de {max_retries} intentos")
+                return None
+    return None
+
+def ensure_db_connection():
+    """Asegura que la conexión a la base de datos esté activa"""
     try:
-        return CustomUser.objects.get(telegram_chat_id=chat_id)
-    except CustomUser.DoesNotExist:
-        return None
+        if connection.connection is None or not connection.is_usable():
+            connection.close()
+            connection.ensure_connection()
+        return True
+    except Exception as e:
+        logger.error(f"Error al conectar a la base de datos: {e}")
+        return False
 
 # --- Comandos del Bot ---
 
 # /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    user = get_user_from_chat(chat_id)
+    try:
+        chat_id = update.effective_chat.id
+        user = get_user_from_chat(chat_id)
 
-    if user:
-        await update.message.reply_text(f"Hola {user.get_full_name()} 👷‍♂️\nUsá /tareas para ver tus tareas o /nueva_tarea para crear una.")
-    else:
-        await update.message.reply_text("🚫 No estás autorizado. Agregá tu chat ID en tu perfil desde la web.")
+        if user:
+            await update.message.reply_text(f"Hola {user.get_full_name()} 👷‍♂️\nUsá /tareas para ver tus tareas o /nueva_tarea para crear una.")
+        else:
+            await update.message.reply_text("🚫 No estás autorizado. Agregá tu chat ID en tu perfil desde la web.")
+    except Exception as e:
+        logger.error(f"Error en comando /start: {e}")
+        await update.message.reply_text("❌ Error interno del bot. Por favor, intenta más tarde.")
 
 # /tareas
 async def tareas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    user = get_user_from_chat(chat_id)
+    try:
+        if not ensure_db_connection():
+            await update.message.reply_text("❌ Error de conexión a la base de datos. Intenta más tarde.")
+            return
 
-    if not user:
-        await update.message.reply_text("🚫 No estás autorizado.")
-        return
+        chat_id = update.effective_chat.id
+        user = get_user_from_chat(chat_id)
 
-    hoy = timezone.now()
-    hace_un_mes = hoy - timedelta(days=30)
-    tareas = WorkLog.objects.filter(technician=user, start__gte=hace_un_mes).order_by('-start')
+        if not user:
+            await update.message.reply_text("🚫 No estás autorizado.")
+            return
 
-    if not tareas.exists():
-        await update.message.reply_text("No tenés tareas cargadas en el último mes.")
-        return
+        hoy = timezone.now()
+        hace_un_mes = hoy - timedelta(days=30)
+        
+        # Obtener tareas con manejo de errores
+        try:
+            tareas = WorkLog.objects.filter(technician=user, start__gte=hace_un_mes).order_by('-start')
+        except Exception as e:
+            logger.error(f"Error al obtener tareas: {e}")
+            await update.message.reply_text("❌ Error al obtener las tareas. Intenta más tarde.")
+            return
 
-    buttons = []
-    for tarea in tareas:
-        texto = f"{tarea.start.strftime('%d-%m %H:%M')} - {tarea.description[:40]}"
-        buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_tarea:{tarea.id}")])
+        if not tareas.exists():
+            await update.message.reply_text("No tenés tareas cargadas en el último mes.")
+            return
 
-    await update.message.reply_text("📋 Tareas del último mes:", reply_markup=InlineKeyboardMarkup(buttons))
+        buttons = []
+        for tarea in tareas:
+            texto = f"{tarea.start.strftime('%d-%m %H:%M')} - {tarea.description[:40]}"
+            buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_tarea:{tarea.id}")])
+
+        await update.message.reply_text("📋 Tareas del último mes:", reply_markup=InlineKeyboardMarkup(buttons))
+    except Exception as e:
+        logger.error(f"Error en comando /tareas: {e}")
+        await update.message.reply_text("❌ Error interno del bot. Por favor, intenta más tarde.")
 
 # Muestra detalle al tocar una tarea
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    try:
+        query = update.callback_query
+        await query.answer()
 
-    if query.data.startswith("ver_tarea:"):
-        tarea_id = int(query.data.split(":")[1])
+        if query.data.startswith("ver_tarea:"):
+            if not ensure_db_connection():
+                await query.edit_message_text("❌ Error de conexión. Intenta más tarde.")
+                return
+
+            tarea_id = int(query.data.split(":")[1])
+            try:
+                tarea = WorkLog.objects.get(id=tarea_id)
+                mensaje = (
+                    f"🧑 Técnico: {tarea.technician.get_full_name()}\n"
+                    f"📆 Inicio: {tarea.start.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"📆 Fin: {tarea.end.strftime('%Y-%m-%d %H:%M')}\n"
+                    f"⏱️ Duración: {tarea.duration()} hs\n"
+                    f"🔧 Tipo: {tarea.task_type} {'('+tarea.other_task_type+')' if tarea.task_type == 'Otros' else ''}\n"
+                    f"📝 Descripción:\n{tarea.description}\n"
+                    f"👥 Colaborador: {tarea.collaborator.get_full_name() if tarea.collaborator else 'Ninguno'}"
+                )
+                await query.edit_message_text(mensaje)
+            except WorkLog.DoesNotExist:
+                await query.edit_message_text("⚠️ La tarea no existe.")
+            except Exception as e:
+                logger.error(f"Error al mostrar tarea: {e}")
+                await query.edit_message_text("❌ Error al mostrar la tarea.")
+    except Exception as e:
+        logger.error(f"Error en callback_query_handler: {e}")
         try:
-            tarea = WorkLog.objects.get(id=tarea_id)
-            mensaje = (
-                f"🧑 Técnico: {tarea.technician.get_full_name()}\n"
-                f"📆 Inicio: {tarea.start.strftime('%Y-%m-%d %H:%M')}\n"
-                f"📆 Fin: {tarea.end.strftime('%Y-%m-%d %H:%M')}\n"
-                f"⏱️ Duración: {tarea.duration()} hs\n"
-                f"🔧 Tipo: {tarea.task_type} {'('+tarea.other_task_type+')' if tarea.task_type == 'Otros' else ''}\n"
-                f"📝 Descripción:\n{tarea.description}"
-            )
-            await query.edit_message_text(mensaje)
-        except WorkLog.DoesNotExist:
-            await query.edit_message_text("⚠️ La tarea no existe.")
+            await update.callback_query.edit_message_text("❌ Error interno del bot.")
+        except:
+            pass
 
 # --- Funciones para la conversación /nueva_tarea ---
 
 async def nueva_tarea_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    user = get_user_from_chat(chat_id)
+    try:
+        if not ensure_db_connection():
+            await update.message.reply_text("❌ Error de conexión a la base de datos. Intenta más tarde.")
+            return ConversationHandler.END
 
-    if not user:
-        await update.message.reply_text("🚫 No estás autorizado.")
+        chat_id = update.effective_chat.id
+        user = get_user_from_chat(chat_id)
+
+        if not user:
+            await update.message.reply_text("🚫 No estás autorizado.")
+            return ConversationHandler.END
+
+        context.user_data['technician'] = user
+
+        # Obtener los tipos de tarea disponibles desde el modelo WorkLog
+        task_type_choices = WorkLog._meta.get_field('task_type').choices
+        buttons = [[InlineKeyboardButton(label, callback_data=f"task_type:{value}")] for value, label in task_type_choices]
+        buttons.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+        await update.message.reply_text(
+            "🛠️ ¿Qué tipo de tarea vas a registrar?",
+            reply_markup=reply_markup
+        )
+        return SELECTING_TASK_TYPE
+    except Exception as e:
+        logger.error(f"Error en nueva_tarea_start: {e}")
+        await update.message.reply_text("❌ Error interno del bot. Por favor, intenta más tarde.")
         return ConversationHandler.END
 
-    context.user_data['technician'] = user
-    context.user_data['start_time'] = timezone.now() # Captura el inicio de la tarea
-
-    # Obtener los tipos de tarea disponibles desde el modelo WorkLog
-    task_type_choices = WorkLog._meta.get_field('task_type').choices
-    buttons = [[InlineKeyboardButton(label, callback_data=f"task_type:{value}")] for value, label in task_type_choices]
-    reply_markup = InlineKeyboardMarkup(buttons)
-
-    await update.message.reply_text(
-        "🛠️ ¿Qué tipo de tarea vas a registrar?",
-        reply_markup=reply_markup
-    )
-    return SELECTING_TASK_TYPE
-
 async def select_task_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    task_type_value = query.data.split(":")[1]
-    context.user_data['task_type'] = task_type_value
+    try:
+        query = update.callback_query
+        await query.answer()
+        task_type_value = query.data.split(":")[1]
+        context.user_data['task_type'] = task_type_value
 
-    if task_type_value == 'Otros':
-        # Si es "Otros", pedimos una descripción más específica para 'other_task_type'
-        await query.edit_message_text("Por favor, describe brevemente qué tipo de 'Otros' es.")
-        # Podrías crear otro estado o manejarlo dentro de ENTERING_DESCRIPTION si prefieres.
-        # Por simplicidad, asumiré que se manejará en la descripción principal por ahora.
-        # Si necesitas un campo separado para 'other_task_type', deberás añadir un estado más.
-    else:
-        await query.edit_message_text(f"Has seleccionado: **{dict(WorkLog._meta.get_field('task_type').choices)[task_type_value]}**\n\n"
-                                     "📝 Ahora, por favor, envía la **descripción** de la tarea. Puedes enviarla como texto o como mensaje de voz (audio).")
-
-    return ENTERING_DESCRIPTION
+        await query.edit_message_text(
+            "📝 Enviá la descripción de la tarea (texto o audio)."
+        )
+        return ENTERING_DESCRIPTION
+    except Exception as e:
+        logger.error(f"Error en select_task_type: {e}")
+        try:
+            await update.callback_query.edit_message_text("❌ Error interno del bot.")
+        except:
+            pass
+        return ConversationHandler.END
 
 async def enter_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    description = ""
-    if update.message.text:
-        description = update.message.text
-        logger.info(f"Descripción recibida como texto: {description}")
-    elif update.message.voice:
-        voice_file = await update.message.voice.get_file()
-        # Define la ruta donde guardar el archivo de audio.
-        # Es crucial que esta ruta sea accesible por tu función de transcripción
-        # y que persista entre reinicios del contenedor si es necesario para depuración.
-        # Puedes usar os.path.join(settings.MEDIA_ROOT, 'worklog_audios', <filename>)
-        # para guardarlo donde está mapeado en docker-compose.
-        # Asegúrate de que el directorio exista: os.makedirs(..., exist_ok=True)
-        
-        # Generar un nombre de archivo único
-        file_extension = voice_file.file_path.split('.')[-1]
-        file_name = f"voice_message_{update.effective_chat.id}_{timezone.now().timestamp()}.{file_extension}"
-        audio_save_path = os.path.join(settings.MEDIA_ROOT, 'worklog_audios', file_name)
+    try:
+        description = ""
+        if update.message.text:
+            description = update.message.text
+            logger.info(f"Descripción recibida como texto: {description}")
+        elif update.message.voice:
+            voice_file = await update.message.voice.get_file()
+            file_extension = voice_file.file_path.split('.')[-1]
+            file_name = f"voice_message_{update.effective_chat.id}_{timezone.now().timestamp()}.{file_extension}"
+            audio_save_path = os.path.join(settings.MEDIA_ROOT, 'worklog_audios', file_name)
+            os.makedirs(os.path.dirname(audio_save_path), exist_ok=True)
+            await voice_file.download_to_drive(audio_save_path)
+            logger.info(f"Audio descargado a: {audio_save_path}")
+            # Guardar ruta relativa para FileField
+            relative_path = os.path.relpath(audio_save_path, settings.MEDIA_ROOT)
+            context.user_data['audio_file_relative'] = relative_path
 
-        # Asegúrate de que la carpeta de destino exista
-        os.makedirs(os.path.dirname(audio_save_path), exist_ok=True)
+            # Transcribir con Whisper
+            model = get_whisper_model()
+            if model is None:
+                logger.error("Modelo Whisper no disponible. Usando marcador de audio adjunto.")
+                description = "[Audio adjunto]"
+            else:
+                try:
+                    await update.message.reply_text("📝 Transcribiendo el audio, por favor esperá unos segundos...")
+                    result = model.transcribe(audio_save_path, language="es", fp16=False)
+                    text = (result or {}).get('text', '').strip()
+                    if text:
+                        description = text
+                        await update.message.reply_text(f"🗒️ Transcripción: {text[:400]}")
+                    else:
+                        description = "[Audio adjunto]"
+                        await update.message.reply_text("⚠️ No se pudo extraer texto del audio. Se adjuntará el archivo.")
+                except Exception as e:
+                    logger.error(f"Error transcribiendo con Whisper: {e}")
+                    description = "[Audio adjunto]"
+                    await update.message.reply_text("⚠️ Hubo un problema al transcribir. Se adjuntará el audio igualmente.")
+        else:
+            await update.message.reply_text("Por favor, enviá la descripción como texto o audio.")
+            return ENTERING_DESCRIPTION
 
-        await voice_file.download_to_drive(audio_save_path)
-        logger.info(f"Audio descargado a: {audio_save_path}")
+        context.user_data['description'] = description
 
-        # Aquí es donde llamas a tu función real de transcripción
-        description = transcribe_audio_placeholder(audio_save_path) # Reemplaza con tu función real
-        logger.info(f"Audio transcrito a: {description}")
+        # Preguntar ESTADO
+        status_choices = WorkLog._meta.get_field('status').choices
+        buttons = [[InlineKeyboardButton(label, callback_data=f"status:{value}")] for value, label in status_choices]
+        buttons.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])
+        await update.message.reply_text(
+            "📌 Seleccioná el estado de la tarea:",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return SELECTING_STATUS
+    except Exception as e:
+        logger.error(f"Error en enter_description: {e}")
+        await update.message.reply_text("❌ Error al procesar la descripción. Intenta de nuevo.")
+        return ENTERING_DESCRIPTION
 
-        await update.message.reply_text(f"🎤 Audio transcrito a texto:\n_\"{description}\"_\n\n", parse_mode='Markdown')
+async def select_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        query = update.callback_query
+        await query.answer()
+        if query.data.startswith("status:"):
+            status_value = query.data.split(":")[1]
+            context.user_data['status'] = status_value
+            await query.edit_message_text(
+                "⏱️ Indicá la duración en formato H:MM (ej. 1:45 para 1 hora 45 minutos, 0:24 para 24 minutos)."
+            )
+            return ENTERING_DURATION
+        await query.edit_message_text("Selección inválida.")
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error en select_status: {e}")
+        try:
+            await update.callback_query.edit_message_text("❌ Error interno del bot.")
+        except:
+            pass
+        return ConversationHandler.END
+
+# Parseo de duración H:MM a timedelta
+def parse_hhmm_to_timedelta(text: str) -> timedelta:
+    text = text.strip()
+    if ':' in text:
+        parts = text.split(':')
+        if len(parts) != 2:
+            raise ValueError("Formato inválido")
+        hours = int(parts[0]) if parts[0] else 0
+        minutes = int(parts[1]) if parts[1] else 0
     else:
-        await update.message.reply_text("Por favor, envía la descripción como texto o como un mensaje de voz.")
-        return ENTERING_DESCRIPTION # Permanece en este estado
-
-    context.user_data['description'] = description
-    await update.message.reply_text("⏱️ Ahora, por favor, envía la **duración** de la tarea en **horas decimales** (ej. 1.5 para una hora y media).")
-    return ENTERING_DURATION
+        # Permitir solo minutos si el usuario pone, por ejemplo, 24
+        if not text.isdigit():
+            raise ValueError("Formato inválido")
+        hours = 0
+        minutes = int(text)
+    if minutes < 0 or minutes >= 60 or hours < 0:
+        raise ValueError("Minutos deben ser 0-59")
+    return timedelta(hours=hours, minutes=minutes)
 
 async def enter_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         duration_str = update.message.text
-        duration = float(duration_str.replace(',', '.')) # Permite coma o punto
-        if duration <= 0:
-            await update.message.reply_text("La duración debe ser un número positivo. Inténtalo de nuevo.")
-            return ENTERING_DURATION
-        context.user_data['duration_hours'] = duration
-    except ValueError:
-        await update.message.reply_text("Formato de duración inválido. Por favor, introduce un número en horas decimales (ej. 0.5, 1, 2.75).")
+        td = parse_hhmm_to_timedelta(duration_str)
+        context.user_data['duration_td'] = td
+
+        # Preguntar si trabajó con colaborador
+        buttons = [
+            [InlineKeyboardButton("Sí", callback_data="colaborador_si")],
+            [InlineKeyboardButton("No", callback_data="colaborador_no")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")]
+        ]
+        await update.message.reply_text(
+            "¿Trabajaste con un colaborador?",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return ASK_COLLABORATOR
+    except Exception:
+        await update.message.reply_text("Formato inválido. Usá H:MM (ej. 1:30) o minutos (ej. 24).")
         return ENTERING_DURATION
 
-    # Guardar la tarea en la base de datos
-    user = context.user_data['technician']
-    start_time = context.user_data['start_time']
-    end_time = start_time + timedelta(hours=context.user_data['duration_hours'])
-    task_type = context.user_data['task_type']
-    description = context.user_data['description']
+async def ask_collaborator(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        query = update.callback_query
+        await query.answer()
+        if query.data == "colaborador_si":
+            if not ensure_db_connection():
+                await query.edit_message_text("❌ Error de conexión. Intenta más tarde.")
+                return ConversationHandler.END
 
-    # Si el task_type es 'Otros', deberías haber pedido otro_task_type.
-    # Por ahora, lo guardaré vacío si no lo tienes.
-    other_task_type = ""
-    if task_type == 'Otros':
-        # Si tienes un estado previo para pedir other_task_type, lo obtendrías de context.user_data
-        # Si no, podrías extraerlo de la descripción si es el caso.
-        # Para este ejemplo, lo dejaré vacío.
-        pass
+            # Mostrar lista de técnicos
+            tecnicos = CustomUser.objects.filter(user_type='tecnico').exclude(id=context.user_data['technician'].id)
+            if not tecnicos.exists():
+                await query.edit_message_text("No hay otros técnicos disponibles para seleccionar como colaborador.")
+                context.user_data['collaborator'] = None
+                return await save_task(update, context)
+            buttons = [
+                [InlineKeyboardButton(f"{t.get_full_name()} ({t.username})", callback_data=f"colaborador_id:{t.id}")]
+                for t in tecnicos
+            ]
+            buttons.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])
+            await query.edit_message_text(
+                "Seleccioná el colaborador:",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+            return SELECTING_COLLABORATOR
+        else:
+            context.user_data['collaborator'] = None
+            await query.edit_message_text("No se seleccionó colaborador.")
+            return await save_task(update, context)
+    except Exception as e:
+        logger.error(f"Error en ask_collaborator: {e}")
+        try:
+            await update.callback_query.edit_message_text("❌ Error interno del bot.")
+        except:
+            pass
+        return ConversationHandler.END
 
-    WorkLog.objects.create(
-        technician=user,
-        start=start_time,
-        end=end_time,
-        task_type=task_type,
-        other_task_type=other_task_type, # Asegúrate de manejar esto si 'Otros' necesita un input específico
-        description=description,
-    )
-    logger.info(f"Tarea registrada por {user.username}: {description}")
+async def select_collaborator(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        query = update.callback_query
+        await query.answer()
+        if query.data.startswith("colaborador_id:"):
+            colaborador_id = int(query.data.split(":")[1])
+            colaborador = CustomUser.objects.filter(id=colaborador_id, user_type='tecnico').first()
+            if colaborador:
+                context.user_data['collaborator'] = colaborador
+                await query.edit_message_text(f"Colaborador seleccionado: {colaborador.get_full_name()} ({colaborador.username})")
+            else:
+                await query.edit_message_text("Colaborador inválido.")
+                context.user_data['collaborator'] = None
+            return await save_task(update, context)
+        else:
+            await query.edit_message_text("Selección inválida.")
+            return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error en select_collaborator: {e}")
+        try:
+            await update.callback_query.edit_message_text("❌ Error interno del bot.")
+        except:
+            pass
+        return ConversationHandler.END
 
-    await update.message.reply_text(
-        f"✅ Tarea registrada con éxito:\n"
-        f" Tipo: {dict(WorkLog._meta.get_field('task_type').choices)[task_type]}\n"
-        f" Descripción: {description[:100]}...\n"
-        f" Duración: {context.user_data['duration_hours']} horas",
-        reply_markup=ReplyKeyboardRemove() # Elimina el teclado de opciones si lo usaste
-    )
-    return ConversationHandler.END
+async def save_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if not ensure_db_connection():
+            await update.effective_chat.send_message("❌ Error de conexión a la base de datos. No se pudo guardar la tarea.")
+            return ConversationHandler.END
+
+        user = context.user_data['technician']
+        end_time = timezone.now()
+        duration_td = context.user_data.get('duration_td', timedelta())
+        start_time = end_time - duration_td
+        task_type = context.user_data['task_type']
+        description = context.user_data['description']
+        status_value = context.user_data.get('status', 'pendiente')
+        collaborator = context.user_data.get('collaborator')
+        audio_file_relative = context.user_data.get('audio_file_relative')
+        
+        # Guardar la tarea
+        worklog = WorkLog.objects.create(
+            technician=user,
+            collaborator=collaborator,
+            start=start_time,
+            end=end_time,
+            task_type=task_type,
+            description=description,
+            status=status_value,
+            created_by=user,
+            audio_file=audio_file_relative if audio_file_relative else None,
+        )
+        
+        await update.effective_chat.send_message("✅ Tarea registrada correctamente.")
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error al guardar tarea: {e}")
+        await update.effective_chat.send_message("❌ Error al guardar la tarea. Por favor, intenta más tarde.")
+        return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🚫 Creación de tarea cancelada.",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    return ConversationHandler.END
+    try:
+        if update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.edit_message_text("❌ Operación cancelada.")
+        else:
+            await update.message.reply_text("❌ Operación cancelada.")
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error en cancel: {e}")
+        return ConversationHandler.END
 
 # --- Main Bot Setup ---
 def main():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN no definido en .env")
         raise Exception("TELEGRAM_BOT_TOKEN no definido en .env")
 
     application = Application.builder().token(TOKEN).build()
@@ -259,18 +479,36 @@ def main():
     nueva_tarea_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("nueva_tarea", nueva_tarea_start)],
         states={
-            SELECTING_TASK_TYPE: [CallbackQueryHandler(select_task_type, pattern="^task_type:")],
-            ENTERING_DESCRIPTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, enter_description), # Para texto
-                MessageHandler(filters.VOICE, enter_description), # Para audio
+            SELECTING_TASK_TYPE: [
+                CallbackQueryHandler(select_task_type, pattern="^task_type:"), 
+                CallbackQueryHandler(cancel, pattern="^cancelar$")
             ],
-            ENTERING_DURATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_duration)],
+            ENTERING_DESCRIPTION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, enter_description),
+                MessageHandler(filters.VOICE, enter_description),
+                CallbackQueryHandler(cancel, pattern="^cancelar$")
+            ],
+            SELECTING_STATUS: [
+                CallbackQueryHandler(select_status, pattern="^status:"),
+                CallbackQueryHandler(cancel, pattern="^cancelar$")
+            ],
+            ENTERING_DURATION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, enter_duration), 
+                CallbackQueryHandler(cancel, pattern="^cancelar$")
+            ],
+            ASK_COLLABORATOR: [
+                CallbackQueryHandler(ask_collaborator, pattern="^colaborador_"), 
+                CallbackQueryHandler(cancel, pattern="^cancelar$")
+            ],
+            SELECTING_COLLABORATOR: [
+                CallbackQueryHandler(select_collaborator, pattern="^colaborador_id:"), 
+                CallbackQueryHandler(cancel, pattern="^cancelar$")
+            ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        allow_reentry=True # Permite iniciar la conversación de nuevo si el bot se reinicia
+        allow_reentry=True,
     )
     application.add_handler(nueva_tarea_conv_handler)
-
 
     logger.info("Bot iniciado...")
     application.run_polling()

@@ -95,9 +95,18 @@ DATABASES = {
         'PORT': env('DB_PORT'),
         'OPTIONS': {
             'sql_mode': 'traditional', # Modo SQL para compatibilidad
-        }
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+        'CONN_MAX_AGE': 60,  # Mantener conexiones vivas por 60 segundos
+        'ATOMIC_REQUESTS': True,  # Transacciones automáticas
     }
 }
+
+# Configuración de conexión a la base de datos
+DB_CONNECTION_TIMEOUT = 20
+DB_READ_TIMEOUT = 30
+DB_WRITE_TIMEOUT = 30
 
 
 # Password validation

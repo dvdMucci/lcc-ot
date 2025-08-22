@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-info-circle"></i> ¿Estás seguro?</h5>
+                        <p>Estás a punto de eliminar la siguiente tarea:</p>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6><strong>Técnico:</strong> {{ object.technician.get_full_name }}</h6>
+                            <h6><strong>Fecha:</strong> {{ object.start|date:"d/m/Y" }}</h6>
+                            <h6><strong>Hora:</strong> {{ object.start|date:"H:i" }} - {{ object.end|date:"H:i" }}</h6>
+                            <h6><strong>Tipo:</strong> {{ object.get_task_type_display }}</h6>
+                            <h6><strong>Descripción:</strong></h6>
+                            <p class="text-muted">{{ object.description|truncatewords:30 }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Advertencia:</strong> Esta acción no se puede deshacer. 
+                        La tarea será eliminada permanentemente del sistema.
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'worklog-list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Sí, Eliminar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

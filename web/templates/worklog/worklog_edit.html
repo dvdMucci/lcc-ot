@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-edit"></i> Editar Tarea
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.start.id_for_label }}" class="form-label">
+                                        <i class="fas fa-clock"></i> {{ form.start.label }}
+                                    </label>
+                                    {{ form.start }}
+                                    {% if form.start.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.start.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.end.id_for_label }}" class="form-label">
+                                        <i class="fas fa-clock"></i> {{ form.end.label }}
+                                    </label>
+                                    {{ form.end }}
+                                    {% if form.end.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.end.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.task_type.id_for_label }}" class="form-label">
+                                        <i class="fas fa-tasks"></i> {{ form.task_type.label }}
+                                    </label>
+                                    {{ form.task_type }}
+                                    {% if form.task_type.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.task_type.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.status.id_for_label }}" class="form-label">
+                                        <i class="fas fa-info-circle"></i> {{ form.status.label }}
+                                    </label>
+                                    {{ form.status }}
+                                    {% if form.status.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.status.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="other_task_type_field" style="display: none;">
+                            <label for="{{ form.other_task_type.id_for_label }}" class="form-label">
+                                <i class="fas fa-edit"></i> {{ form.other_task_type.label }}
+                            </label>
+                            {{ form.other_task_type }}
+                            {% if form.other_task_type.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.other_task_type.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                <i class="fas fa-align-left"></i> {{ form.description.label }}
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.description.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.collaborator.id_for_label }}" class="form-label">
+                                        <i class="fas fa-users"></i> {{ form.collaborator.label }}
+                                    </label>
+                                    {{ form.collaborator }}
+                                    {% if form.collaborator.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.collaborator.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.work_order.id_for_label }}" class="form-label">
+                                        <i class="fas fa-file-alt"></i> {{ form.work_order.label }}
+                                    </label>
+                                    {{ form.work_order }}
+                                    {% if form.work_order.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.work_order.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'worklog-list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const taskTypeField = document.getElementById('{{ form.task_type.id_for_label }}');
+    const otherTaskTypeField = document.getElementById('other_task_type_field');
+    
+    function toggleOtherTaskType() {
+        if (taskTypeField.value === 'Otros') {
+            otherTaskTypeField.style.display = 'block';
+        } else {
+            otherTaskTypeField.style.display = 'none';
+        }
+    }
+    
+    taskTypeField.addEventListener('change', toggleOtherTaskType);
+    toggleOtherTaskType(); // Ejecutar al cargar la página
+});
+</script>
+{% endblock %}
