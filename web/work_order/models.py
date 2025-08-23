@@ -12,8 +12,11 @@ class WorkOrder(models.Model):
 
     class Estado(models.TextChoices):
         ABIERTA = "abierta", "Abierta"
-        EN_PROCESO = "en_proceso", "En proceso"
-        PAUSADA = "pausada", "Pausada"
+        PENDIENTE = "pendiente", "Pendiente"
+        EN_PROCESO = "en_proceso", "En Proceso"
+        EN_ESPERA_REPUESTOS = "en_espera_repuestos", "En Espera de Repuestos"
+        COMPLETADA = "completada", "Completada"
+        CANCELADA = "cancelada", "Cancelada"
         CERRADA = "cerrada", "Cerrada"
 
     numero = models.CharField(max_length=30, unique=True, help_text="Identificador de la OT (p.ej. OT-2025-001)")

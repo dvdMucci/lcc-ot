@@ -17,9 +17,60 @@ class OrdenListView(LoginRequiredMixin, ListView):
     ordering = ["-fecha_creacion"]
     template_name = "work_order/list.html"
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Si el usuario es técnico, filtrar solo las órdenes asignadas a él o donde figure como colaborador
+        if hasattr(self.request.user, 'user_type'):
+            is_tecnico = self.request.user.user_type == 'tecnico'
+            if is_tecnico:
+                # Obtener órdenes asignadas directamente al técnico
+                assigned_orders = queryset.filter(asignado_a=self.request.user)
+                
+                # Obtener órdenes donde el técnico aparece como colaborador en alguna tarea
+                if WorkLog:
+                    collaborator_orders = queryset.filter(
+                        worklogs__collaborator=self.request.user
+                    ).distinct()
+                    
+                    # Combinar ambos querysets usando union para evitar problemas de unicidad
+                    queryset = assigned_orders.union(collaborator_orders)
+                else:
+                    queryset = assigned_orders
+        
+        return queryset
+
 class OrdenDetailView(LoginRequiredMixin, DetailView):
     model = WorkOrder
     template_name = "work_order/detail.html"
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        
+        # Si el usuario es técnico, verificar que tenga acceso a esta orden
+        if hasattr(self.request.user, 'user_type'):
+            is_tecnico = self.request.user.user_type == 'tecnico'
+            if is_tecnico:
+                # Verificar si está asignado directamente o es colaborador
+                has_access = False
+                
+                # Verificar asignación directa
+                if obj.asignado_a == self.request.user:
+                    has_access = True
+                
+                # Verificar si es colaborador en alguna tarea
+                if not has_access and WorkLog:
+                    has_access = WorkLog.objects.filter(
+                        work_order_ref=obj,
+                        collaborator=self.request.user
+                    ).exists()
+                
+                # Si no tiene acceso, lanzar error 403
+                if not has_access:
+                    from django.http import Http404
+                    raise Http404("Orden de trabajo no encontrada o acceso denegado.")
+        
+        return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -84,7 +135,7 @@ class NotTecnicoWritePermission(permissions.BasePermission):
             return request.user and request.user.is_authenticated
         if not request.user or not request.user.is_authenticated:
             return False
-        return not request.user.groups.filter(name__iregex="^t[eé]cnico$").exists()
+        return getattr(request.user, 'user_type', '') != 'tecnico'
 
 class WorkOrderViewSet(viewsets.ModelViewSet):
     queryset = WorkOrder.objects.all().select_related("cliente", "asignado_a")

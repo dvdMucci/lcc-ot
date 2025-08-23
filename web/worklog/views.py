@@ -48,6 +48,26 @@ class WorkLogCreateView(LoginRequiredMixin, CreateView):
     template_name = 'worklog/worklog_form.html'
     success_url = reverse_lazy('worklog-list')
 
+    def get_initial(self):
+        initial = super().get_initial()
+        
+        # Si viene desde una orden de trabajo, preseleccionar
+        work_order_param = self.request.GET.get('work_order')
+        if work_order_param:
+            try:
+                from work_order.models import WorkOrder
+                work_order = WorkOrder.objects.get(numero=work_order_param)
+                initial['work_order'] = work_order
+            except WorkOrder.DoesNotExist:
+                pass
+        
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         form.instance.technician = self.request.user
         form.instance.created_by = self.request.user
@@ -59,37 +79,6 @@ class WorkLogCreateView(LoginRequiredMixin, CreateView):
             form.instance.work_order_ref = work_order_value
         
         response = super().form_valid(form)
-
-        # Crear copia para colaborador, si existe
-        collaborator = form.cleaned_data.get('collaborator')
-        if collaborator:
-            # Obtener el valor del work_order (puede ser un objeto o string)
-            work_order_value = form.cleaned_data.get('work_order')
-            if hasattr(work_order_value, 'numero'):
-                work_order_value = work_order_value.numero
-            
-            collaborator_worklog = WorkLog.objects.create(
-                technician=collaborator,
-                collaborator=self.request.user,
-                start=form.instance.start,
-                end=form.instance.end,
-                task_type=form.instance.task_type,
-                other_task_type=form.instance.other_task_type,
-                description=form.instance.description,
-                work_order=work_order_value,
-                work_order_ref=form.instance.work_order_ref,
-                status=form.instance.status,
-                created_by=self.request.user,
-            )
-            
-            # Registrar en el historial
-            WorkLogHistory.objects.create(
-                worklog=collaborator_worklog,
-                user=self.request.user,
-                action='created',
-                ip_address=self.get_client_ip(),
-                user_agent=self.request.META.get('HTTP_USER_AGENT', '')
-            )
 
         # Registrar en el historial
         WorkLogHistory.objects.create(

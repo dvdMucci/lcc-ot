@@ -3,7 +3,9 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0">Órdenes de Trabajo</h1>
+    {% if user.user_type not in 'tecnico' %}
     <a class="btn btn-primary" href="{% url 'work_order:create' %}">Nueva OT</a>
+    {% endif %}
   </div>
 
   <div class="table-responsive">
@@ -13,8 +15,10 @@
           <th>Número</th>
           <th>Cliente</th>
           <th>Título</th>
+          <th>Prioridad</th>
           <th>Estado</th>
           <th>Asignado</th>
+          <th>Tiempo Restante</th>
           <th>Creación</th>
         </tr>
       </thead>
@@ -24,12 +28,39 @@
           <td><a href="{% url 'work_order:detail' o.pk %}">{{ o.numero }}</a></td>
           <td>{{ o.cliente }}</td>
           <td>{{ o.titulo }}</td>
+          <td>
+            {% if o.prioridad == 'urgente' %}
+              <span class="badge bg-danger">Urgente</span>
+            {% elif o.prioridad == 'alta' %}
+              <span class="badge bg-warning">Alta</span>
+            {% elif o.prioridad == 'media' %}
+              <span class="badge bg-info">Media</span>
+            {% else %}
+              <span class="badge bg-secondary">Baja</span>
+            {% endif %}
+          </td>
           <td><span class="badge bg-secondary">{{ o.get_estado_display }}</span></td>
           <td>{{ o.asignado_a|default:"—" }}</td>
+          <td>
+            {% if o.fecha_limite %}
+              {% now "Y-m-d H:i" as current_time %}
+              {% if o.fecha_limite|date:"Y-m-d H:i" < current_time %}
+                <span class="text-danger">
+                  <i class="fas fa-exclamation-triangle"></i> Vencida
+                </span>
+              {% else %}
+                <span class="text-success">
+                  <i class="fas fa-clock"></i> {{ o.fecha_limite|timeuntil }}
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">Sin límite</span>
+            {% endif %}
+          </td>
           <td>{{ o.fecha_creacion|date:"d/m/Y H:i" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted">Sin órdenes.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted">Sin órdenes.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -12,10 +12,13 @@ class WorkLog(models.Model):
     ]
 
     STATUS_CHOICES = [
+        ('abierta', 'Abierta'),
         ('pendiente', 'Pendiente'),
         ('en_proceso', 'En Proceso'),
+        ('en_espera_repuestos', 'En Espera de Repuestos'),
         ('completada', 'Completada'),
         ('cancelada', 'Cancelada'),
+        ('cerrada', 'Cerrada'),
     ]
 
     technician = models.ForeignKey(User, on_delete=models.CASCADE, related_name='worklogs')
@@ -64,12 +67,38 @@ class WorkLog(models.Model):
         # Si no hay created_by, usar technician como creador
         if not self.created_by:
             self.created_by = self.technician
+        
+        # Guardar primero para obtener el ID
         super().save(*args, **kwargs)
+        
+        # Actualizar el estado de la orden de trabajo asociada si existe
+        self.update_work_order_status()
+    
+    def update_work_order_status(self):
+        """Actualiza el estado de la orden de trabajo asociada basándose en el estado de esta tarea"""
+        if self.work_order_ref:
+            # Mapeo de estados de tarea a estados de orden de trabajo
+            status_mapping = {
+                'abierta': 'abierta',
+                'pendiente': 'pendiente', 
+                'en_proceso': 'en_proceso',
+                'en_espera_repuestos': 'en_espera_repuestos',
+                'completada': 'completada',
+                'cancelada': 'cancelada',
+                'cerrada': 'cerrada'
+            }
+            
+            new_status = status_mapping.get(self.status)
+            if new_status and new_status != self.work_order_ref.estado:
+                self.work_order_ref.estado = new_status
+                self.work_order_ref.actualizado_por = self.updated_by or self.created_by
+                self.work_order_ref.save(update_fields=['estado', 'actualizado_por', 'actualizado_en'])
 
     class Meta:
         verbose_name = 'Registro de Trabajo'
         verbose_name_plural = 'Registros de Trabajo'
         ordering = ['-start']
+
 
 
 class WorkLogHistory(models.Model):

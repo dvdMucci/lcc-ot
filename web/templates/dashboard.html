@@ -123,6 +123,28 @@
         </div>
     </div>
     {% endif %}
+    
+    {% if user.user_type in 'admin,supervisor,operador,tecnico' %}
+    <div class="col-md-6 col-lg-3">
+        <div class="card bg-info text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Órdenes de Trabajo</h5>
+                        <p class="h4">Ver / Gestionar</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-tasks fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer d-flex align-items-center justify-content-between">
+                <a class="small text-white stretched-link" href="{% url 'work_order:list' %}">Ver órdenes</a>
+                <div class="small text-white"><i class="fas fa-arrow-right"></i></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
 <div class="row">
     <div class="col-12">
@@ -142,6 +164,12 @@
                     {% endif %}
                     {% if user.user_type in 'admin,supervisor,operador' %}
                     <li>Gestión de clientes</li>
+                    {% endif %}
+                    {% if user.user_type in 'admin,supervisor,operador,tecnico' %}
+                    <li>Gestión de órdenes de trabajo</li>
+                    {% endif %}
+                    {% if user.user_type in 'admin,supervisor,tecnico' %}
+                    <li>Registro de horas técnicas</li>
                     {% endif %}
                 </ul>
             </div>

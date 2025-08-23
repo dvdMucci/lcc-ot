@@ -46,7 +46,19 @@ class WorkLogForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
+        # Restringir estados para técnicos
+        if self.user and hasattr(self.user, 'groups'):
+            is_tecnico = self.user.groups.filter(name__iregex="^t[eé]cnico$").exists()
+            if is_tecnico:
+                # Los técnicos no pueden usar 'abierta' y 'cerrada'
+                restricted_choices = [
+                    choice for choice in self.fields['status'].choices 
+                    if choice[0] not in ['abierta', 'cerrada']
+                ]
+                self.fields['status'].choices = restricted_choices
         
         # Intentar importar WorkOrder y establecer el queryset
         try:
@@ -103,7 +115,18 @@ class WorkLogEditForm(forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # Configurar el campo work_order con órdenes activas
+        # Restringir estados para técnicos
+        if self.user and hasattr(self.user, 'groups'):
+            is_tecnico = self.user.groups.filter(name__iregex="^t[eé]cnico$").exists()
+            if is_tecnico:
+                # Los técnicos no pueden usar 'abierta' y 'cerrada'
+                restricted_choices = [
+                    choice for choice in self.fields['status'].choices 
+                    if choice[0] not in ['abierta', 'cerrada']
+                ]
+                self.fields['status'].choices = restricted_choices
+        
+        # Intentar importar WorkOrder y establecer el queryset
         try:
             from work_order.models import WorkOrder
             # Filtrar solo órdenes activas (no cerradas ni canceladas)

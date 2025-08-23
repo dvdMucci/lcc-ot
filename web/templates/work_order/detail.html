@@ -7,7 +7,12 @@
       <div class="text-muted">Cliente: <strong>{{ object.cliente }}</strong></div>
     </div>
     <div class="d-flex gap-2">
+      {% if user.user_type not in 'tecnico' %}
       <a class="btn btn-outline-secondary" href="{% url 'work_order:update' object.pk %}">Editar</a>
+      {% endif %}
+      <a class="btn btn-primary" href="{% url 'worklog-create' %}?work_order={{ object.numero }}">
+        <i class="fas fa-plus"></i> Agregar Tarea
+      </a>
     </div>
   </div>
 
@@ -17,10 +22,37 @@
         <div class="card-body">
           <h5 class="card-title">Detalle</h5>
           <dl class="row mb-0">
-            <dt class="col-sm-3">Prioridad</dt><dd class="col-sm-9">{{ object.get_prioridad_display }}</dd>
+            <dt class="col-sm-3">Prioridad</dt>
+            <dd class="col-sm-9">
+              {% if object.prioridad == 'urgente' %}
+                <span class="badge bg-danger">Urgente</span>
+              {% elif object.prioridad == 'alta' %}
+                <span class="badge bg-warning">Alta</span>
+              {% elif object.prioridad == 'media' %}
+                <span class="badge bg-info">Media</span>
+              {% else %}
+                <span class="badge bg-secondary">Baja</span>
+              {% endif %}
+            </dd>
             <dt class="col-sm-3">Estado</dt><dd class="col-sm-9">{{ object.get_estado_display }}</dd>
             <dt class="col-sm-3">Asignado a</dt><dd class="col-sm-9">{{ object.asignado_a|default:"—" }}</dd>
-            <dt class="col-sm-3">Fecha límite</dt><dd class="col-sm-9">{{ object.fecha_limite|date:"d/m/Y H:i"|default:"—" }}</dd>
+            <dt class="col-sm-3">Fecha límite</dt>
+            <dd class="col-sm-9">
+              {% if object.fecha_limite %}
+                {% now "Y-m-d H:i" as current_time %}
+                {% if object.fecha_limite|date:"Y-m-d H:i" < current_time %}
+                  <span class="text-danger">
+                    <i class="fas fa-exclamation-triangle"></i> {{ object.fecha_limite|date:"d/m/Y H:i" }} (Vencida)
+                  </span>
+                {% else %}
+                  <span class="text-success">
+                    <i class="fas fa-clock"></i> {{ object.fecha_limite|date:"d/m/Y H:i" }} ({{ object.fecha_limite|timeuntil }} restante)
+                  </span>
+                {% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </dd>
           </dl>
           {% if object.descripcion %}
           <hr>
