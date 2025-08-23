@@ -1,9 +1,5 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from work_order.models import WorkOrder
-work_order_ref = models.ForeignKey(
-    WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="worklogs"
-)
 
 User = get_user_model()
 
@@ -30,6 +26,13 @@ class WorkLog(models.Model):
     other_task_type = models.CharField(max_length=100, blank=True, null=True)
     description = models.TextField()
     work_order = models.CharField(max_length=50, null=True, blank=True)
+    work_order_ref = models.ForeignKey(
+        'work_order.WorkOrder', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name="worklogs"
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendiente')
 
     # Campos de auditoría - con valores por defecto para migración

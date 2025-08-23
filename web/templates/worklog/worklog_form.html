@@ -36,8 +36,30 @@
         </div>
 
         <div class="mb-3">
-            <label for="id_work_order" class="form-label">Orden de trabajo (opcional)</label>
+            <label for="id_work_order" class="form-label">{{ form.work_order.label }}</label>
             {{ form.work_order }}
+            {% if form.work_order.help_text %}
+                <div class="form-text">{{ form.work_order.help_text }}</div>
+            {% endif %}
+            {% if form.work_order.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.work_order.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_status" class="form-label">Estado de la tarea</label>
+            {{ form.status }}
+            {% if form.status.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.status.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         <button type="submit" class="btn btn-primary">

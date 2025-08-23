@@ -51,11 +51,23 @@ class WorkLogCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.technician = self.request.user
         form.instance.created_by = self.request.user
+        
+        # Asegurarse de que work_order se guarde como string y work_order_ref como objeto
+        work_order_value = form.cleaned_data.get('work_order')
+        if hasattr(work_order_value, 'numero'):
+            form.instance.work_order = work_order_value.numero
+            form.instance.work_order_ref = work_order_value
+        
         response = super().form_valid(form)
 
         # Crear copia para colaborador, si existe
         collaborator = form.cleaned_data.get('collaborator')
         if collaborator:
+            # Obtener el valor del work_order (puede ser un objeto o string)
+            work_order_value = form.cleaned_data.get('work_order')
+            if hasattr(work_order_value, 'numero'):
+                work_order_value = work_order_value.numero
+            
             collaborator_worklog = WorkLog.objects.create(
                 technician=collaborator,
                 collaborator=self.request.user,
@@ -64,7 +76,8 @@ class WorkLogCreateView(LoginRequiredMixin, CreateView):
                 task_type=form.instance.task_type,
                 other_task_type=form.instance.other_task_type,
                 description=form.instance.description,
-                work_order=form.instance.work_order,
+                work_order=work_order_value,
+                work_order_ref=form.instance.work_order_ref,
                 status=form.instance.status,
                 created_by=self.request.user,
             )

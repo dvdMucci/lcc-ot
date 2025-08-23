@@ -28,6 +28,14 @@ class WorkLogFilterForm(forms.Form):
 
 
 class WorkLogForm(forms.ModelForm):
+    # Campo personalizado para órdenes de trabajo activas
+    work_order = forms.ModelChoiceField(
+        queryset=None,  # Se establecerá en __init__
+        required=False,
+        empty_label="Seleccionar orden de trabajo (opcional)",
+        label="Orden de trabajo"
+    )
+    
     class Meta:
         model = WorkLog
         fields = ['start', 'end', 'task_type', 'other_task_type', 'description', 'collaborator', 'work_order', 'status']
@@ -36,6 +44,26 @@ class WorkLogForm(forms.ModelForm):
             'end': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'description': forms.Textarea(attrs={'rows': 5}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Intentar importar WorkOrder y establecer el queryset
+        try:
+            from work_order.models import WorkOrder
+            # Filtrar solo órdenes activas (no cerradas ni canceladas)
+            active_orders = WorkOrder.objects.exclude(
+                estado__in=['cerrada', 'cancelada']
+            ).order_by('-fecha_creacion')
+            self.fields['work_order'].queryset = active_orders
+        except ImportError:
+            # Si no se puede importar WorkOrder, mantener el campo como CharField
+            self.fields['work_order'] = forms.CharField(
+                max_length=50,
+                required=False,
+                label="Orden de trabajo (opcional)",
+                help_text="Ingrese el número de orden de trabajo"
+            )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -55,18 +83,42 @@ class WorkLogForm(forms.ModelForm):
 
 class WorkLogEditForm(forms.ModelForm):
     """Formulario para editar tareas existentes"""
+    # Campo personalizado para órdenes de trabajo activas
+    work_order = forms.ModelChoiceField(
+        queryset=None,  # Se establecerá en __init__
+        required=False,
+        empty_label="Seleccionar orden de trabajo (opcional)",
+        label="Orden de trabajo"
+    )
+    
     class Meta:
         model = WorkLog
         fields = ['start', 'end', 'task_type', 'other_task_type', 'description', 'collaborator', 'work_order', 'status']
         widgets = {
             'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'end': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'description': forms.Textarea(attrs={'rows': 5}),
         }
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
+        # Configurar el campo work_order con órdenes activas
+        try:
+            from work_order.models import WorkOrder
+            # Filtrar solo órdenes activas (no cerradas ni canceladas)
+            active_orders = WorkOrder.objects.exclude(
+                estado__in=['cerrada', 'cancelada']
+            ).order_by('-fecha_creacion')
+            self.fields['work_order'].queryset = active_orders
+        except ImportError:
+            # Si no se puede importar WorkOrder, mantener el campo como CharField
+            self.fields['work_order'] = forms.CharField(
+                max_length=50,
+                required=False,
+                label="Orden de trabajo (opcional)",
+                help_text="Ingrese el número de orden de trabajo"
+            )
         
         # Si no es admin/supervisor, limitar edición de algunos campos si existen
         if self.user and not (self.user.is_staff or getattr(self.user, 'user_type', '') in ['admin', 'supervisor']):
