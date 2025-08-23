@@ -12,7 +12,7 @@
   </div>
 
   <div class="row g-3">
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-lg-9">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">Detalle</h5>
@@ -29,9 +29,9 @@
         </div>
       </div>
 
-      <div class="card mt-3">
+      <div class="card mt-2">
         <div class="card-body">
-          <h5 class="card-title mb-3">Tareas asociadas</h5>
+          <h5 class="card-title mb-2">Tareas asociadas</h5>
           {% if tareas %}
           <div class="table-responsive">
             <table class="table table-sm">
@@ -41,20 +41,56 @@
                   <th>Técnico</th>
                   <th>Descripción</th>
                   <th>Horas</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {% for t in tareas %}
                 <tr>
                   <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
-                  <td>{{ t.user }}</td>
-                  <td>{{ t.description|default:t.notes|default:"—" }}</td>
-                  <td>{{ t.hours|default:t.duration|default:"—" }}</td>
+                  <td>
+                    <div>
+                      <strong>{{ t.technician }}</strong>
+                      {% if t.collaborator %}
+                        <br><small class="text-muted">
+                          <i class="fas fa-user-plus"></i> Colabora: {{ t.collaborator }}
+                        </small>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>{% firstof t.description t.notes "—" %}</td>
+                  <td>{% firstof t.hours t.duration "—" %}</td>
+                  <td>
+                    <div class="btn-group" role="group">
+                      <a href="{% url 'worklog-detail' t.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalles">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                
+                      {% if user.is_staff or user.user_type in 'admin,supervisor' or t.created_by == user or t.technician == user %}
+                        <a href="{% url 'worklog-edit' t.pk %}" class="btn btn-sm btn-outline-warning" title="Editar">
+                          <i class="fas fa-edit"></i>
+                        </a>
+                      {% endif %}
+                
+                      {% if user.is_staff or user.user_type in 'admin,supervisor' %}
+                        <a href="{% url 'worklog-delete' t.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" 
+                           onclick="return confirm('¿Estás seguro de que quieres eliminar esta tarea?')">
+                          <i class="fas fa-trash"></i>
+                        </a>
+                      {% endif %}
+                    </div>
+                  </td>
                 </tr>
+                
                 {% endfor %}
               </tbody>
             </table>
           </div>
+          {% if tareas %}
+          <div class="alert alert-info mt-2">
+              <strong>Total de horas mostradas:</strong> {{ total_horas }} hs
+          </div>
+          {% endif %}
           {% else %}
             <div class="text-muted">No hay tareas registradas para esta orden.</div>
           {% endif %}
@@ -62,7 +98,7 @@
       </div>
     </div>
 
-    <div class="col-12 col-lg-4">
+    <div class="col-12 col-lg-3">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">Metadatos</h5>

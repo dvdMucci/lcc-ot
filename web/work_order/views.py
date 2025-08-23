@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from .models import WorkOrder
 from .forms import WorkOrderForm
 from .permissions import NotTecnicoRequiredMixin
@@ -22,13 +22,42 @@ class OrdenDetailView(LoginRequiredMixin, DetailView):
     template_name = "work_order/detail.html"
 
     def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
+        
+        # Cargar las tareas asociadas
         if WorkLog:
             # Buscar WorkLog que tengan el número de esta orden de trabajo
-            ctx["tareas"] = WorkLog.objects.filter(work_order=self.object.numero)
+            # Verificar tanto work_order (CharField) como work_order_ref (ForeignKey)
+            context["tareas"] = WorkLog.objects.filter(
+                Q(work_order=self.object.numero) | 
+                Q(work_order_ref=self.object)
+            )
         else:
-            ctx["tareas"] = []
-        return ctx
+            context["tareas"] = []
+        
+        # Calcular el total de horas
+        tareas = context.get("tareas")
+        total_horas = 0
+
+        if tareas:
+            for t in tareas:
+                # Usar el método duration() del modelo WorkLog
+                try:
+                    horas = t.duration()
+                    total_horas += horas
+                except (AttributeError, TypeError, ValueError):
+                    # Fallback: intentar calcular manualmente
+                    try:
+                        if hasattr(t, 'start') and hasattr(t, 'end') and t.start and t.end:
+                            duration = (t.end - t.start).total_seconds() / 3600
+                            total_horas += round(duration, 2)
+                    except:
+                        pass
+
+        context["total_horas"] = round(total_horas, 2)
+        return context
+    
+    
 
 class OrdenCreateView(LoginRequiredMixin, NotTecnicoRequiredMixin, CreateView):
     model = WorkOrder
@@ -61,3 +90,6 @@ class WorkOrderViewSet(viewsets.ModelViewSet):
     queryset = WorkOrder.objects.all().select_related("cliente", "asignado_a")
     serializer_class = WorkOrderSerializer
     permission_classes = [permissions.IsAuthenticated & NotTecnicoWritePermission]
+
+
+
