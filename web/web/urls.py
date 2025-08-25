@@ -12,4 +12,4 @@ urlpatterns = [
     path('work_order/', include('work_order.urls')), # Incluye las URLs de la aplicación 'work_order'
     path('clients/', include('clients.urls')), # Incluye las URLs de la aplicación 'clients'
     path('accounts/', include('accounts.urls')), # Incluye las URLs de la aplicación 'accounts'
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] # + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # Comentado por seguridad

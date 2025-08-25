@@ -153,25 +153,201 @@
                 <h5><i class="fas fa-info-circle"></i> Información del Sistema</h5>
             </div>
             <div class="card-body">
-                <p>Sistema de gestión de usuarios con autenticación de doble factor (2FA) y integración con Telegram.</p>
-                <p><strong>Funcionalidades disponibles:</strong></p>
-                <ul>
-                    <li>Gestión de perfil de usuario</li>
-                    <li>Configuración de 2FA con Google Authenticator</li>
-                    <li>Integración con Telegram (Chat ID)</li>
-                    {% if user.can_manage_users %}
-                    <li>Gestión de usuarios</li>
-                    {% endif %}
+                <p class="lead">Bienvenido al Sistema de Gestión Integral de LCC Junín</p>
+                
+                <div class="row">
+                    <!-- Funcionalidades Básicas para Todos -->
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="fas fa-user-cog"></i> Funcionalidades Básicas</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Gestión de perfil de usuario</li>
+                            <li><i class="fas fa-check text-success"></i> Configuración de 2FA con Google Authenticator</li>
+                            <li><i class="fas fa-check text-success"></i> Integración con Telegram (Chat ID)</li>
+                            <li><i class="fas fa-check text-success"></i> Dashboard personalizado</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Funcionalidades de Seguridad -->
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="fas fa-shield-alt"></i> Seguridad y Autenticación</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Autenticación de doble factor (2FA)</li>
+                            <li><i class="fas fa-check text-success"></i> Contraseñas seguras</li>
+                            <li><i class="fas fa-check text-success"></i> Sesiones controladas</li>
+                            <li><i class="fas fa-check text-success"></i> Auditoría de cambios</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Funcionalidades por Perfil -->
+                {% if user.user_type == 'admin' %}
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-crown"></i> Perfil: Administrador del Sistema</h6>
+                    <p class="mb-2">Tienes acceso completo a todas las funcionalidades del sistema.</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="fas fa-users-cog"></i> Gestión de Usuarios</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Crear, editar y eliminar usuarios</li>
+                            <li><i class="fas fa-check text-success"></i> Asignar roles y permisos</li>
+                            <li><i class="fas fa-check text-success"></i> Gestionar grupos de usuarios</li>
+                            <li><i class="fas fa-check text-success"></i> Monitorear actividad del sistema</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-warning"><i class="fas fa-database"></i> Gestión del Sistema</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Configuración del sistema</li>
+                            <li><i class="fas fa-check text-success"></i> Respaldo y restauración</li>
+                            <li><i class="fas fa-check text-success"></i> Logs del sistema</li>
+                            <li><i class="fas fa-check text-success"></i> Mantenimiento</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                {% elif user.user_type == 'supervisor' %}
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-user-tie"></i> Perfil: Supervisor</h6>
+                    <p class="mb-2">Puedes gestionar usuarios, clientes, órdenes de trabajo y supervisar el trabajo técnico.</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="fas fa-users-cog"></i> Gestión de Usuarios</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Crear y editar usuarios técnicos</li>
+                            <li><i class="fas fa-check text-success"></i> Asignar roles y permisos</li>
+                            <li><i class="fas fa-check text-success"></i> Supervisar actividad de usuarios</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-info"><i class="fas fa-tasks"></i> Supervisión de Trabajo</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Gestionar órdenes de trabajo</li>
+                            <li><i class="fas fa-check text-success"></i> Supervisar horas técnicas</li>
+                            <li><i class="fas fa-check text-success"></i> Asignar tareas a técnicos</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                {% elif user.user_type == 'tecnico' %}
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-tools"></i> Perfil: Técnico</h6>
+                    <p class="mb-2">Puedes gestionar tus tareas, registrar horas y ver órdenes de trabajo asignadas.</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="fas fa-clock"></i> Gestión de Tareas</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Registrar horas de trabajo</li>
+                            <li><i class="fas fa-check text-success"></i> Crear y editar tareas</li>
+                            <li><i class="fas fa-check text-success"></i> Asociar tareas a órdenes de trabajo</li>
+                            <li><i class="fas fa-check text-success"></i> Colaborar con otros técnicos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-info"><i class="fas fa-tasks"></i> Órdenes de Trabajo</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Ver órdenes asignadas</li>
+                            <li><i class="fas fa-check text-success"></i> Ver órdenes donde colaboras</li>
+                            <li><i class="fas fa-check text-success"></i> Actualizar estados de tareas</li>
+                            <li><i class="fas fa-check text-success"></i> Crear tareas asociadas</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                {% elif user.user_type == 'operador' %}
+                <div class="alert alert-primary">
+                    <h6><i class="fas fa-user-edit"></i> Perfil: Operador</h6>
+                    <p class="mb-2">Puedes gestionar clientes y órdenes de trabajo del sistema.</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-info"><i class="fas fa-address-book"></i> Gestión de Clientes</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Crear y editar clientes</li>
+                            <li><i class="fas fa-check text-success"></i> Mantener base de datos de clientes</li>
+                            <li><i class="fas fa-check text-success"></i> Gestionar información de contacto</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-warning"><i class="fas fa-tasks"></i> Órdenes de Trabajo</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Crear nuevas órdenes</li>
+                            <li><i class="fas fa-check text-success"></i> Editar órdenes existentes</li>
+                            <li><i class="fas fa-check text-success"></i> Asignar técnicos</li>
+                            <li><i class="fas fa-check text-success"></i> Gestionar prioridades</li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Funcionalidades Específicas por Perfil -->
+                <div class="row">
                     {% if user.user_type in 'admin,supervisor,operador' %}
-                    <li>Gestión de clientes</li>
+                    <div class="col-md-6">
+                        <h6 class="text-info"><i class="fas fa-address-book"></i> Gestión de Clientes</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Base de datos de clientes</li>
+                            <li><i class="fas fa-check text-success"></i> Información de contacto</li>
+                            <li><i class="fas fa-check text-success"></i> Historial de servicios</li>
+                        </ul>
+                    </div>
                     {% endif %}
+                    
                     {% if user.user_type in 'admin,supervisor,operador,tecnico' %}
-                    <li>Gestión de órdenes de trabajo</li>
+                    <div class="col-md-6">
+                        <h6 class="text-warning"><i class="fas fa-tasks"></i> Órdenes de Trabajo</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Creación y gestión de OT</li>
+                            <li><i class="fas fa-check text-success"></i> Asignación de técnicos</li>
+                            <li><i class="fas fa-check text-success"></i> Control de prioridades</li>
+                            <li><i class="fas fa-check text-success"></i> Seguimiento de estados</li>
+                        </ul>
+                    </div>
                     {% endif %}
+                    
                     {% if user.user_type in 'admin,supervisor,tecnico' %}
-                    <li>Registro de horas técnicas</li>
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="fas fa-clock"></i> Horas Técnicas</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Registro de horas trabajadas</li>
+                            <li><i class="fas fa-check text-success"></i> Tipos de tareas (Taller, Campo, etc.)</li>
+                            <li><i class="fas fa-check text-success"></i> Colaboración entre técnicos</li>
+                            <li><i class="fas fa-check text-success"></i> Exportación de datos</li>
+                        </ul>
+                    </div>
                     {% endif %}
-                </ul>
+                </div>
+                
+                <!-- Información Adicional -->
+                <div class="mt-3 p-3 bg-light rounded">
+                    <h6><i class="fas fa-lightbulb"></i> Consejos de Uso</h6>
+                    <ul class="mb-0">
+                        <li>Utiliza el menú de navegación superior para acceder rápidamente a las funcionalidades</li>
+                        <li>Las tarjetas del dashboard te permiten acceder directamente a las secciones principales</li>
+                        <li>Mantén actualizada tu información de perfil y configuración de 2FA</li>
+                        {% if user.user_type in 'admin,supervisor' %}
+                        <li>Como supervisor, puedes gestionar usuarios y supervisar el trabajo técnico</li>
+                        {% endif %}
+                        {% if user.user_type == 'tecnico' %}
+                        <li>Registra tus horas de trabajo regularmente para mantener un control preciso</li>
+                        <li>Asocia tus tareas a las órdenes de trabajo correspondientes</li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

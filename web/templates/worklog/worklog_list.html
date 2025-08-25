@@ -97,7 +97,7 @@
                         </span>
 
                         {% if log.audio_file %}
-                            <a href="{{ log.audio_file.url }}" download class="btn btn-sm btn-outline-secondary ms-2" title="Descargar audio">
+                            <a href="{% url 'worklog-audio' log.pk %}" download class="btn btn-sm btn-outline-secondary ms-2" title="Descargar audio">
                                 <i class="fas fa-volume-up"></i>
                             </a>
                         {% endif %}

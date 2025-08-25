@@ -86,11 +86,11 @@
                     <div class="mt-3">
                         <h6><strong><i class="fas fa-microphone"></i> Archivo de Audio:</strong></h6>
                         <audio controls class="w-100">
-                            <source src="{{ worklog.audio_file.url }}" type="audio/ogg">
+                            <source src="{% url 'worklog-audio' worklog.pk %}" type="audio/ogg">
                             Tu navegador no soporta la reproducción de audio.
                         </audio>
                         <div class="mt-2">
-                            <a href="{{ worklog.audio_file.url }}" download class="btn btn-outline-secondary btn-sm">
+                            <a href="{% url 'worklog-audio' worklog.pk %}" download class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-download"></i> Descargar Audio
                             </a>
                         </div>

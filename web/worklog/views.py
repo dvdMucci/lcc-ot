@@ -4,11 +4,13 @@ from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db.models import Q
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
+import os
 from .models import WorkLog, WorkLogHistory
 from .forms import WorkLogForm, WorkLogFilterForm, WorkLogEditForm
 from datetime import timedelta, date
@@ -329,3 +331,62 @@ def worklog_detail(request, pk):
         'history': worklog.history.all()[:10]  # Últimos 10 cambios
     }
     return render(request, 'worklog/worklog_detail.html', context)
+
+
+@login_required
+def serve_audio_file(request, worklog_id):
+    """Vista protegida para servir archivos de audio de las tareas"""
+    try:
+        # Obtener la tarea y verificar permisos
+        worklog = get_object_or_404(WorkLog, pk=worklog_id)
+        user = request.user
+        
+        # Verificar si el usuario tiene permisos para acceder a este audio
+        if not (user.is_staff or user.user_type in ['admin', 'supervisor'] or 
+                worklog.created_by == user or worklog.technician == user or 
+                worklog.collaborator == user):
+            raise Http404("No tienes permisos para acceder a este archivo.")
+        
+        # Verificar que la tarea tenga un archivo de audio
+        if not worklog.audio_file:
+            raise Http404("Esta tarea no tiene archivo de audio.")
+        
+        # Construir la ruta completa del archivo
+        # El archivo ya está en MEDIA_ROOT, solo necesitamos la ruta relativa
+        file_path = os.path.join(settings.MEDIA_ROOT, str(worklog.audio_file))
+        
+        # Debug: Log de las rutas
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Usuario {user.username} solicitando audio para worklog {worklog_id}")
+        logger.info(f"Archivo en BD: {worklog.audio_file}")
+        logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
+        logger.info(f"Ruta completa: {file_path}")
+        logger.info(f"Archivo existe: {os.path.exists(file_path)}")
+        
+        # Si el archivo no existe en la ruta esperada, intentar con la ruta antigua
+        if not os.path.exists(file_path):
+            # Intentar con la ruta antigua (worklog_audios/ sin el prefijo media/)
+            old_path = os.path.join(settings.MEDIA_ROOT, str(worklog.audio_file).replace('media/', ''))
+            logger.info(f"Intentando ruta antigua: {old_path}")
+            if os.path.exists(old_path):
+                file_path = old_path
+                logger.info(f"Archivo encontrado en ruta antigua: {file_path}")
+            else:
+                logger.error(f"Archivo no encontrado en ninguna ruta: {file_path} o {old_path}")
+                raise Http404("Archivo de audio no encontrado.")
+        
+        # Servir el archivo
+        try:
+            with open(file_path, 'rb') as f:
+                response = HttpResponse(f.read(), content_type='audio/ogg')
+                response['Content-Disposition'] = f'inline; filename="{os.path.basename(file_path)}"'
+                logger.info(f"Archivo servido exitosamente: {file_path}")
+                return response
+        except Exception as e:
+            logger.error(f"Error leyendo archivo {file_path}: {e}")
+            raise Http404("Error al leer el archivo de audio.")
+            
+    except Exception as e:
+        logger.error(f"Error general en serve_audio_file: {e}")
+        raise Http404("Error al acceder al archivo de audio.")
