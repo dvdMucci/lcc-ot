@@ -107,7 +107,8 @@ class WorkLogEditForm(forms.ModelForm):
         model = WorkLog
         fields = ['start', 'end', 'task_type', 'other_task_type', 'description', 'collaborator', 'work_order', 'status']
         widgets = {
-            'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'start': forms.DateTimeInput(attrs={'type': 'text', 'class': 'form-control'}),
+            'end': forms.DateTimeInput(attrs={'type': 'text', 'class': 'form-control'}),
             'description': forms.Textarea(attrs={'rows': 5}),
         }
 
@@ -144,10 +145,11 @@ class WorkLogEditForm(forms.ModelForm):
             )
         
         # Si no es admin/supervisor, limitar edición de algunos campos si existen
-        if self.user and not (self.user.is_staff or getattr(self.user, 'user_type', '') in ['admin', 'supervisor']):
-            for field_name in ['start', 'end']:
-                if field_name in self.fields:
-                    self.fields[field_name].widget.attrs['readonly'] = True
+        # TEMPORALMENTE COMENTADO PARA DEBUG
+        # if self.user and not (self.user.is_staff or getattr(self.user, 'user_type', '') in ['admin', 'supervisor']):
+        #     for field_name in ['start', 'end']:
+        #         if field_name in self.fields:
+        #             self.fields[field_name].widget.attrs['readonly'] = True
 
     def clean(self):
         cleaned_data = super().clean()

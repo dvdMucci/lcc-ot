@@ -17,7 +17,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.start.id_for_label }}" class="form-label">
-                                        <i class="fas fa-clock"></i> {{ form.start.label }}
+                                        <i class="fas fa-clock"></i> Inicio
                                     </label>
                                     {{ form.start }}
                                     {% if form.start.errors %}
@@ -33,7 +33,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.end.id_for_label }}" class="form-label">
-                                        <i class="fas fa-clock"></i> {{ form.end.label }}
+                                        <i class="fas fa-clock"></i> Finalización
                                     </label>
                                     {{ form.end }}
                                     {% if form.end.errors %}
@@ -51,7 +51,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.task_type.id_for_label }}" class="form-label">
-                                        <i class="fas fa-tasks"></i> {{ form.task_type.label }}
+                                        <i class="fas fa-tasks"></i> Tipo de Tarea
                                     </label>
                                     {{ form.task_type }}
                                     {% if form.task_type.errors %}
@@ -67,7 +67,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.status.id_for_label }}" class="form-label">
-                                        <i class="fas fa-info-circle"></i> {{ form.status.label }}
+                                        <i class="fas fa-info-circle"></i> Estado de la Tarea
                                     </label>
                                     {{ form.status }}
                                     {% if form.status.errors %}
@@ -97,7 +97,7 @@
 
                         <div class="mb-3">
                             <label for="{{ form.description.id_for_label }}" class="form-label">
-                                <i class="fas fa-align-left"></i> {{ form.description.label }}
+                                <i class="fas fa-align-left"></i> Descripción detallada
                             </label>
                             <div class="d-flex align-items-start">
                                 <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="copyToClipboard('{{ form.description.value|default:"w"|escapejs }}')" title="Copiar descripción">
@@ -120,7 +120,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.collaborator.id_for_label }}" class="form-label">
-                                        <i class="fas fa-users"></i> {{ form.collaborator.label }}
+                                        <i class="fas fa-users"></i> Colaborador
                                     </label>
                                     {{ form.collaborator }}
                                     {% if form.collaborator.errors %}
@@ -136,7 +136,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.work_order.id_for_label }}" class="form-label">
-                                        <i class="fas fa-file-alt"></i> {{ form.work_order.label }}
+                                        <i class="fas fa-file-alt"></i> Orden de trabajo
                                     </label>
                                     {{ form.work_order }}
                                     {% if form.work_order.errors %}
@@ -169,6 +169,22 @@
 document.addEventListener('DOMContentLoaded', function() {
     const taskTypeField = document.getElementById('{{ form.task_type.id_for_label }}');
     const otherTaskTypeField = document.getElementById('other_task_type_field');
+    
+    // Hacer los campos de fecha de solo lectura
+    const startField = document.getElementById('{{ form.start.id_for_label }}');
+    const endField = document.getElementById('{{ form.end.id_for_label }}');
+    
+    if (startField) {
+        startField.setAttribute('readonly', true);
+        startField.style.backgroundColor = '#f8f9fa';
+        startField.style.cursor = 'not-allowed';
+    }
+    
+    if (endField) {
+        endField.setAttribute('readonly', true);
+        endField.style.backgroundColor = '#f8f9fa';
+        endField.style.cursor = 'not-allowed';
+    }
     
     function toggleOtherTaskType() {
         if (taskTypeField.value === 'Otros') {

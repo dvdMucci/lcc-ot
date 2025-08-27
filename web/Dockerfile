@@ -6,7 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Asegura que la salida de Python se muestre en la terminal sin buffer
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y ffmpeg netcat-openbsd gcc htop default-libmysqlclient-dev python3-dev pkg-config && rm -rf /var/lib/apt/lists/*
+# Configuración de hilos para faster-whisper
+ENV OMP_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+ENV NUMEXPR_NUM_THREADS=1
+
+RUN apt-get update && apt-get install -y git libsndfile1 ffmpeg netcat-openbsd gcc htop default-libmysqlclient-dev python3-dev pkg-config build-essential && rm -rf /var/lib/apt/lists/*
 
 # Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
