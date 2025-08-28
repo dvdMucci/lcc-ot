@@ -34,20 +34,3 @@ services:
       DJANGO_SUPERUSER_PASSWORD: admin123
     depends_on:
       - db # No intentes iniciar la web hasta que la base de datos esté lista
-
-  # 3. Contenedor del Bot de Telegram
-  # bot:
-  #   build:
-  #     context: ./bot
-  #     dockerfile: Dockerfile
-  #   container_name: telegram_bot
-  #   restart: always
-  #   volumes:
-  #     - ./bot:/app
-  #     - ./web/media/worklog_audios:/app/audio_uploads  # Carpeta compartida entre web y bot
-  #     - ./web:/app/web  # <--- este monta el código Django dentro del contenedor del bot
-  #   command: ["./wait-for-db.sh", "python", "bot.py"]
-  #   env_file:
-  #     - ./.env
-  #   depends_on:
-  #     - db # El bot también puede depender de la base de datos
