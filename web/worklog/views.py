@@ -227,7 +227,7 @@ class WorkLogListView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(start__date__range=(start_date, end_date))
 
         self.filter_form = form
-        self.filtered_queryset = queryset.order_by('-start')
+        self.filtered_queryset = queryset.order_by('-end')
         return self.filtered_queryset
 
     def get_context_data(self, **kwargs):
