@@ -363,38 +363,39 @@ def serve_audio_file(request, worklog_id):
         # El archivo ya está en MEDIA_ROOT, solo necesitamos la ruta relativa
         file_path = os.path.join(settings.MEDIA_ROOT, str(worklog.audio_file))
         
-        # Debug: Log de las rutas
+        # Debug: Log reducido para producción
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"Usuario {user.username} solicitando audio para worklog {worklog_id}")
-        logger.info(f"Archivo en BD: {worklog.audio_file}")
-        logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
-        logger.info(f"Ruta completa: {file_path}")
-        logger.info(f"Archivo existe: {os.path.exists(file_path)}")
+        logger.debug(f"Usuario {user.username} solicitando audio para worklog {worklog_id}")
         
         # Si el archivo no existe en la ruta esperada, intentar con la ruta antigua
         if not os.path.exists(file_path):
             # Intentar con la ruta antigua (worklog_audios/ sin el prefijo media/)
             old_path = os.path.join(settings.MEDIA_ROOT, str(worklog.audio_file).replace('media/', ''))
-            logger.info(f"Intentando ruta antigua: {old_path}")
+            logger.debug(f"Intentando ruta antigua para worklog {worklog_id}")
             if os.path.exists(old_path):
                 file_path = old_path
-                logger.info(f"Archivo encontrado en ruta antigua: {file_path}")
+                logger.debug(f"Archivo encontrado en ruta antigua para worklog {worklog_id}")
             else:
-                logger.error(f"Archivo no encontrado en ninguna ruta: {file_path} o {old_path}")
+                logger.error(f"Archivo no encontrado para worklog {worklog_id}")
                 raise Http404("Archivo de audio no encontrado.")
         
-        # Servir el archivo
+        # Servir el archivo con content-type correcto
         try:
+            import mimetypes
+            ctype, _ = mimetypes.guess_type(file_path)
+            if not ctype:
+                ctype = 'application/octet-stream'
+            
             with open(file_path, 'rb') as f:
-                response = HttpResponse(f.read(), content_type='audio/ogg')
+                response = HttpResponse(f.read(), content_type=ctype)
                 response['Content-Disposition'] = f'inline; filename="{os.path.basename(file_path)}"'
-                logger.info(f"Archivo servido exitosamente: {file_path}")
+                logger.debug(f"Archivo servido exitosamente para worklog {worklog_id}")
                 return response
         except Exception as e:
-            logger.error(f"Error leyendo archivo {file_path}: {e}")
+            logger.error(f"Error leyendo archivo para worklog {worklog_id}: {e}")
             raise Http404("Error al leer el archivo de audio.")
             
     except Exception as e:
-        logger.error(f"Error general en serve_audio_file: {e}")
+        logger.error(f"Error general en serve_audio_file para worklog {worklog_id}: {e}")
         raise Http404("Error al acceder al archivo de audio.")

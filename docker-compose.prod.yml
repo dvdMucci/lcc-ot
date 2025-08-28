@@ -1,0 +1,64 @@
+services:
+  # 1. Contenedor de la Base de Datos
+  db:
+    image: mariadb:10.11
+    container_name: mariadb_service_prod
+    restart: always
+    volumes:
+      - ./mariadb_data:/var/lib/mysql
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - lcc_network
+
+  # 2. Contenedor de la Aplicación Web (Django + Gunicorn)
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: django_web_app_prod
+    restart: always
+    volumes:
+      - ./web:/app
+      - ./logs:/var/log/django
+    command: ["./wait-for-db.sh", "sh", "-c", "python manage.py migrate && exec gunicorn web.wsgi:application -w 4 -b 0.0.0.0:8000 --timeout 120 --max-requests 1000 --max-requests-jitter 100"]
+    ports:
+      - "5800:8000"
+    env_file:
+      - ./.env
+    environment:
+      DJANGO_SETTINGS_MODULE: web.settings_prod
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
+    depends_on:
+      - db
+    networks:
+      - lcc_network
+
+  # 3. Contenedor del Bot de Telegram (separado)
+  bot:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: telegram_bot_prod
+    restart: always
+    volumes:
+      - ./web:/app
+    command: ["./wait-for-db.sh", "python", "bot.py"]
+    env_file:
+      - ./.env
+    environment:
+      DJANGO_SETTINGS_MODULE: web.settings_prod
+    depends_on:
+      - db
+      - web
+    networks:
+      - lcc_network
+
+networks:
+  lcc_network:
+    driver: bridge

@@ -11,5 +11,5 @@ class NotTecnicoRequiredMixin(UserPassesTestMixin):
         user = self.request.user
         if not user.is_authenticated:
             return False
-        # Verificar si el usuario NO está en el grupo técnico
-        return not user.groups.filter(name__iregex="^t[eé]cnico$").exists()
+        # Verificar si el usuario NO es de tipo técnico
+        return getattr(user, 'user_type', '') != 'tecnico'

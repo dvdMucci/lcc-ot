@@ -11,8 +11,8 @@ services:
       MARIADB_DATABASE: ${DB_NAME}
       MARIADB_USER: ${DB_USER}
       MARIADB_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5306:3306" # Exponer el puerto solo si necesitas acceder desde tu máquina local
+    #ports:
+    #  - "5306:3306" # Exponer el puerto solo si necesitas acceder desde tu máquina local
 
   # 2. Contenedor de la Aplicación Web (Django)
   web:
@@ -29,8 +29,8 @@ services:
     env_file:
       - ./.env
     environment:
-      DJANGO_SUPERUSER_USERNAME: admin
-      DJANGO_SUPERUSER_EMAIL: admin@example.com
-      DJANGO_SUPERUSER_PASSWORD: admin123
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin123}
     depends_on:
       - db # No intentes iniciar la web hasta que la base de datos esté lista

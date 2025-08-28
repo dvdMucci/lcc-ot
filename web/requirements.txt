@@ -13,6 +13,7 @@ djangorestframework
 openpyxl
 python-telegram-bot
 torch
+gunicorn
 
 # faster-whisper (usa CTranslate2 en CPU)
 faster-whisper==1.0.3

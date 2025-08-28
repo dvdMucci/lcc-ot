@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from clients.models import Client
+from .validators import validate_workorder_attachment
 
 class WorkOrder(models.Model):
     class Prioridad(models.TextChoices):
@@ -69,7 +70,10 @@ class WorkOrder(models.Model):
 
 class WorkOrderAttachment(models.Model):
     orden = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="adjuntos")
-    archivo = models.FileField(upload_to="workorders/")
+    archivo = models.FileField(
+        upload_to="workorders/",
+        validators=[validate_workorder_attachment]
+    )
     descripcion = models.CharField(max_length=255, blank=True)
     subido_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     subido_en = models.DateTimeField(auto_now_add=True)
