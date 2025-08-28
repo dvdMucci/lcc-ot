@@ -2,8 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.db.models import Prefetch, Q
+from django.utils import timezone
+from datetime import datetime, timedelta
 from .models import WorkOrder
-from .forms import WorkOrderForm
+from .forms import WorkOrderForm, WorkOrderFilterForm
 from .permissions import NotTecnicoRequiredMixin
 
 try:
@@ -18,7 +20,7 @@ class OrdenListView(LoginRequiredMixin, ListView):
     template_name = "work_order/list.html"
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('cliente', 'asignado_a')
         
         # Si el usuario es técnico, filtrar solo las órdenes asignadas a él o donde figure como colaborador
         if hasattr(self.request.user, 'user_type'):
@@ -38,7 +40,120 @@ class OrdenListView(LoginRequiredMixin, ListView):
                 else:
                     queryset = assigned_orders
         
+        # Aplicar filtros
+        form = WorkOrderFilterForm(self.request.GET or None)
+        if form.is_valid():
+            # Búsqueda general
+            search = form.cleaned_data.get('search')
+            if search:
+                queryset = queryset.filter(
+                    Q(cliente__razon_social__icontains=search) |
+                    Q(cliente__cuit__icontains=search) |
+                    Q(numero__icontains=search) |
+                    Q(titulo__icontains=search) |
+                    Q(descripcion__icontains=search)
+                )
+            
+            # Filtros específicos
+            cliente = form.cleaned_data.get('cliente')
+            if cliente and len(cliente) >= 4:  # Mínimo 4 caracteres para búsqueda de cliente
+                queryset = queryset.filter(cliente__razon_social__icontains=cliente)
+            
+            cuit = form.cleaned_data.get('cuit')
+            if cuit:
+                queryset = queryset.filter(cliente__cuit__icontains=cuit)
+            
+            numero_ot = form.cleaned_data.get('numero_ot')
+            if numero_ot:
+                queryset = queryset.filter(numero__icontains=numero_ot)
+            
+            titulo = form.cleaned_data.get('titulo')
+            if titulo:
+                queryset = queryset.filter(titulo__icontains=titulo)
+            
+            prioridad = form.cleaned_data.get('prioridad')
+            if prioridad:
+                queryset = queryset.filter(prioridad=prioridad)
+            
+            estado = form.cleaned_data.get('estado')
+            if estado:
+                queryset = queryset.filter(estado=estado)
+            
+            asignado_a = form.cleaned_data.get('asignado_a')
+            if asignado_a:
+                queryset = queryset.filter(asignado_a=asignado_a)
+            
+            # Filtros de fecha
+            fecha_desde = form.cleaned_data.get('fecha_desde')
+            if fecha_desde:
+                queryset = queryset.filter(fecha_creacion__date__gte=fecha_desde)
+            
+            fecha_hasta = form.cleaned_data.get('fecha_hasta')
+            if fecha_hasta:
+                queryset = queryset.filter(fecha_creacion__date__lte=fecha_hasta)
+            
+            # Estado de vencimiento
+            estado_vencimiento = form.cleaned_data.get('estado_vencimiento')
+            if estado_vencimiento:
+                now = timezone.now()
+                if estado_vencimiento == 'vencidas':
+                    queryset = queryset.filter(fecha_limite__lt=now)
+                elif estado_vencimiento == 'por_vencer':
+                    queryset = queryset.filter(fecha_limite__gte=now)
+                elif estado_vencimiento == 'sin_limite':
+                    queryset = queryset.filter(fecha_limite__isnull=True)
+            
+            # Ordenamiento
+            ordenar_por = form.cleaned_data.get('ordenar_por')
+            if ordenar_por:
+                # Manejar ordenamiento especial para prioridad
+                if ordenar_por in ['prioridad', '-prioridad']:
+                    # Crear ordenamiento personalizado para prioridad
+                    from django.db.models import Case, When, Value, IntegerField
+                    priority_order = Case(
+                        When(prioridad='urgente', then=Value(4)),
+                        When(prioridad='alta', then=Value(3)),
+                        When(prioridad='media', then=Value(2)),
+                        When(prioridad='baja', then=Value(1)),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                    if ordenar_por == 'prioridad':
+                        queryset = queryset.annotate(priority_order=priority_order).order_by('priority_order')
+                    else:
+                        queryset = queryset.annotate(priority_order=priority_order).order_by('-priority_order')
+                else:
+                    queryset = queryset.order_by(ordenar_por)
+        
+        self.filter_form = form
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['filter_form'] = self.filter_form
+        
+        # Agregar estadísticas de filtros
+        total_ordenes = self.get_queryset().count()
+        context['total_ordenes'] = total_ordenes
+        
+        # Contar por estado
+        context['estados_count'] = {
+            'abierta': self.get_queryset().filter(estado='abierta').count(),
+            'pendiente': self.get_queryset().filter(estado='pendiente').count(),
+            'en_proceso': self.get_queryset().filter(estado='en_proceso').count(),
+            'completada': self.get_queryset().filter(estado='completada').count(),
+            'cerrada': self.get_queryset().filter(estado='cerrada').count(),
+        }
+        
+        # Contar por prioridad
+        context['prioridades_count'] = {
+            'urgente': self.get_queryset().filter(prioridad='urgente').count(),
+            'alta': self.get_queryset().filter(prioridad='alta').count(),
+            'media': self.get_queryset().filter(prioridad='media').count(),
+            'baja': self.get_queryset().filter(prioridad='baja').count(),
+        }
+        
+        return context
 
 class OrdenDetailView(LoginRequiredMixin, DetailView):
     model = WorkOrder

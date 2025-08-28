@@ -54,7 +54,19 @@ logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
 )
 logger = logging.getLogger("worklog-bot-fw")
+
+# Configurar niveles de logging específicos
 logging.getLogger("faster_whisper").setLevel(logging.INFO)  # subir a DEBUG si querés más detalle
+
+# Silenciar logs de HTTP requests de httpx y telegram
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("telegram").setLevel(logging.WARNING)
+logging.getLogger("telegram.ext").setLevel(logging.WARNING)
+
+# Mantener logs de errores importantes
+logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("telegram").setLevel(logging.ERROR)
+logging.getLogger("telegram.ext").setLevel(logging.ERROR)
 
 # ----------------------------
 # Estados de conversación
@@ -238,11 +250,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.effective_chat.id
         user = get_user_from_chat(chat_id)
         if user:
+            logger.info(f"Usuario {user.get_full_name()} ({user.username}) inició el bot")
             await update.message.reply_text(
                 f"Hola {user.get_full_name()} 👷‍♂️\n"
                 f"Usá /tareas para ver tus tareas, /nueva_tarea para crear una o /ver_OTs para ver tus Órdenes de Trabajo."
             )
         else:
+            logger.warning(f"Intento de acceso no autorizado desde chat_id: {chat_id}")
             await update.message.reply_text("🚫 No estás autorizado. Agregá tu chat ID en tu perfil desde la web.")
     except Exception as e:
         logger.error(f"/start error: {e}")
@@ -257,8 +271,11 @@ async def tareas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.effective_chat.id
         user = get_user_from_chat(chat_id)
         if not user:
+            logger.warning(f"Intento de acceso no autorizado a /tareas desde chat_id: {chat_id}")
             await update.message.reply_text("🚫 No estás autorizado.")
             return
+        
+        logger.info(f"Usuario {user.get_full_name()} ({user.username}) consultó sus tareas")
 
         try:
             tareas_qs = WorkLog.objects.filter(
@@ -294,8 +311,11 @@ async def ver_OTs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.effective_chat.id
         user = get_user_from_chat(chat_id)
         if not user:
+            logger.warning(f"Intento de acceso no autorizado a /ver_OTs desde chat_id: {chat_id}")
             await update.message.reply_text("🚫 No estás autorizado.")
             return
+        
+        logger.info(f"Usuario {user.get_full_name()} ({user.username}) consultó sus órdenes de trabajo")
 
         from work_order.models import WorkOrder
 
@@ -858,7 +878,8 @@ async def save_task_direct(query, context):
         work_order_value = work_order.numero if work_order else None
         work_order_ref = work_order if work_order else None
 
-        WorkLog.objects.create(
+        # Crear la tarea
+        worklog = WorkLog.objects.create(
             technician=user,
             collaborator=collaborator,
             start=start_time,
@@ -876,6 +897,11 @@ async def save_task_direct(query, context):
             created_by=user,
             audio_file=audio_file_relative if audio_file_relative else None,
         )
+
+        # Log de actividad del usuario
+        logger.info(f"Usuario {user.get_full_name()} ({user.username}) creó tarea #{worklog.id}: {task_type} - {final_description[:50]}...")
+        if work_order:
+            logger.info(f"Tarea #{worklog.id} asociada a OT: {work_order.numero}")
 
         msg = "✅ Tarea registrada correctamente."
         if work_order:
@@ -1226,6 +1252,8 @@ def main():
         },
         fallbacks=[CallbackQueryHandler(cancel, pattern="^cancelar$"), CommandHandler("cancel", cancel)],
         allow_reentry=True,
+        per_chat=True,     # Rastrear conversaciones por chat individual
+        per_user=True,     # Rastrear conversaciones por usuario individual
     )
     application.add_handler(conv_handler)
 

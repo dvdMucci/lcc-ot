@@ -1,69 +1,338 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0">Órdenes de Trabajo</h1>
     {% if user.user_type not in 'tecnico' %}
-    <a class="btn btn-primary" href="{% url 'work_order:create' %}">Nueva OT</a>
+    <a class="btn btn-primary" href="{% url 'work_order:create' %}">
+      <i class="fas fa-plus"></i> Nueva OT
+    </a>
     {% endif %}
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-striped align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Número</th>
-          <th>Cliente</th>
-          <th>Título</th>
-          <th>Prioridad</th>
-          <th>Estado</th>
-          <th>Asignado</th>
-          <th>Tiempo Restante</th>
-          <th>Creación</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for o in object_list %}
-        <tr>
-          <td><a href="{% url 'work_order:detail' o.pk %}">{{ o.numero }}</a></td>
-          <td>{{ o.cliente }}</td>
-          <td>{{ o.titulo }}</td>
-          <td>
-            {% if o.prioridad == 'urgente' %}
-              <span class="badge bg-danger">Urgente</span>
-            {% elif o.prioridad == 'alta' %}
-              <span class="badge bg-warning">Alta</span>
-            {% elif o.prioridad == 'media' %}
-              <span class="badge bg-info">Media</span>
-            {% else %}
-              <span class="badge bg-secondary">Baja</span>
-            {% endif %}
-          </td>
-          <td><span class="badge bg-secondary">{{ o.get_estado_display }}</span></td>
-          <td>{{ o.asignado_a|default:"—" }}</td>
-          <td>
-            {% if o.fecha_limite %}
-              {% now "Y-m-d H:i" as current_time %}
-              {% if o.fecha_limite|date:"Y-m-d H:i" < current_time %}
-                <span class="text-danger">
-                  <i class="fas fa-exclamation-triangle"></i> Vencida
-                </span>
-              {% else %}
-                <span class="text-success">
-                  <i class="fas fa-clock"></i> {{ o.fecha_limite|timeuntil }}
-                </span>
-              {% endif %}
-            {% else %}
-              <span class="text-muted">Sin límite</span>
-            {% endif %}
-          </td>
-          <td>{{ o.fecha_creacion|date:"d/m/Y H:i" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="8" class="text-center text-muted">Sin órdenes.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Panel de Filtros -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-filter"></i> Filtros y Búsqueda
+        <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </h5>
+    </div>
+    <div class="collapse show" id="filtersCollapse">
+      <div class="card-body">
+        <form method="get" id="filterForm">
+          <!-- Búsqueda General -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              {{ filter_form.search.label_tag }}
+              {{ filter_form.search }}
+            </div>
+            <div class="col-md-3">
+              {{ filter_form.ordenar_por.label_tag }}
+              {{ filter_form.ordenar_por }}
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <button type="submit" class="btn btn-primary me-2">
+                <i class="fas fa-search"></i> Filtrar
+              </button>
+              <a href="{% url 'work_order:list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Limpiar
+              </a>
+            </div>
+          </div>
+
+          <!-- Filtros Específicos -->
+          <div class="row mb-3">
+            <div class="col-md-3">
+              {{ filter_form.cliente.label_tag }}
+              {{ filter_form.cliente }}
+              <small class="form-text text-muted">Mínimo 4 caracteres</small>
+            </div>
+            <div class="col-md-3">
+              {{ filter_form.cuit.label_tag }}
+              {{ filter_form.cuit }}
+            </div>
+            <div class="col-md-3">
+              {{ filter_form.numero_ot.label_tag }}
+              {{ filter_form.numero_ot }}
+            </div>
+            <div class="col-md-3">
+              {{ filter_form.titulo.label_tag }}
+              {{ filter_form.titulo }}
+            </div>
+          </div>
+
+          <!-- Filtros de Estado y Asignación -->
+          <div class="row mb-3">
+            <div class="col-md-2">
+              {{ filter_form.prioridad.label_tag }}
+              {{ filter_form.prioridad }}
+            </div>
+            <div class="col-md-2">
+              {{ filter_form.estado.label_tag }}
+              {{ filter_form.estado }}
+            </div>
+            <div class="col-md-3">
+              {{ filter_form.asignado_a.label_tag }}
+              {{ filter_form.asignado_a }}
+            </div>
+            <div class="col-md-2">
+              {{ filter_form.estado_vencimiento.label_tag }}
+              {{ filter_form.estado_vencimiento }}
+            </div>
+            <div class="col-md-3">
+              <div class="row">
+                <div class="col-6">
+                  {{ filter_form.fecha_desde.label_tag }}
+                  {{ filter_form.fecha_desde }}
+                </div>
+                <div class="col-6">
+                  {{ filter_form.fecha_hasta.label_tag }}
+                  {{ filter_form.fecha_hasta }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
+
+  <!-- Estadísticas -->
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body text-center">
+          <h4>{{ total_ordenes }}</h4>
+          <small>Total Órdenes</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body text-center">
+          <h4>{{ estados_count.en_proceso|default:0 }}</h4>
+          <small>En Proceso</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-danger text-white">
+        <div class="card-body text-center">
+          <h4>{{ prioridades_count.urgente|default:0 }}</h4>
+          <small>Urgentes</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body text-center">
+          <h4>{{ estados_count.completada|default:0 }}</h4>
+          <small>Completadas</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de Resultados -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-list"></i> Resultados ({{ total_ordenes }} órdenes)
+      </h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Número</th>
+              <th>Cliente</th>
+              <th>Título</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Asignado</th>
+              <th>Tiempo Restante</th>
+              <th>Creación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in object_list %}
+            <tr>
+              <td>
+                <a href="{% url 'work_order:detail' o.pk %}" class="fw-bold">
+                  {{ o.numero }}
+                </a>
+              </td>
+              <td>
+                <div>
+                  <strong>{{ o.cliente.razon_social }}</strong>
+                  <br><small class="text-muted">{{ o.cliente.cuit }}</small>
+                </div>
+              </td>
+              <td>
+                <div class="text-truncate" style="max-width: 200px;" title="{{ o.titulo }}">
+                  {{ o.titulo }}
+                </div>
+              </td>
+              <td>
+                {% if o.prioridad == 'urgente' %}
+                  <span class="badge bg-danger">Urgente</span>
+                {% elif o.prioridad == 'alta' %}
+                  <span class="badge bg-warning">Alta</span>
+                {% elif o.prioridad == 'media' %}
+                  <span class="badge bg-info">Media</span>
+                {% else %}
+                  <span class="badge bg-secondary">Baja</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if o.estado == 'abierta' %}
+                  <span class="badge bg-primary">Abierta</span>
+                {% elif o.estado == 'pendiente' %}
+                  <span class="badge bg-warning">Pendiente</span>
+                {% elif o.estado == 'en_proceso' %}
+                  <span class="badge bg-info">En Proceso</span>
+                {% elif o.estado == 'en_espera_repuestos' %}
+                  <span class="badge bg-secondary">Espera Repuestos</span>
+                {% elif o.estado == 'completada' %}
+                  <span class="badge bg-success">Completada</span>
+                {% elif o.estado == 'cancelada' %}
+                  <span class="badge bg-danger">Cancelada</span>
+                {% else %}
+                  <span class="badge bg-dark">Cerrada</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if o.asignado_a %}
+                  <div>
+                    <strong>{{ o.asignado_a.get_full_name }}</strong>
+                    <br><small class="text-muted">{{ o.asignado_a.username }}</small>
+                  </div>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if o.fecha_limite %}
+                  {% now "Y-m-d H:i" as current_time %}
+                  {% if o.fecha_limite|date:"Y-m-d H:i" < current_time %}
+                    <span class="text-danger">
+                      <i class="fas fa-exclamation-triangle"></i> Vencida
+                    </span>
+                  {% else %}
+                    <span class="text-success">
+                      <i class="fas fa-clock"></i> {{ o.fecha_limite|timeuntil }}
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">Sin límite</span>
+                {% endif %}
+              </td>
+              <td>
+                <div>
+                  <strong>{{ o.fecha_creacion|date:"d/m/Y" }}</strong>
+                  <br><small class="text-muted">{{ o.fecha_creacion|date:"H:i" }}</small>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">
+                <i class="fas fa-search fa-2x mb-2"></i>
+                <p>No se encontraron órdenes con los filtros aplicados.</p>
+                <a href="{% url 'work_order:list' %}" class="btn btn-outline-primary">Limpiar filtros</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paginación -->
+  {% if is_paginated %}
+  <nav aria-label="Paginación" class="mt-3">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">
+            <i class="fas fa-angle-double-left"></i>
+          </a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">
+            <i class="fas fa-angle-left"></i>
+          </a>
+        </li>
+      {% endif %}
+
+      <li class="page-item active">
+        <span class="page-link">
+          Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+        </span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">
+            <i class="fas fa-angle-right"></i>
+          </a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">
+            <i class="fas fa-angle-double-right"></i>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form when cliente field reaches 4 characters
+    const clienteField = document.getElementById('id_cliente');
+    if (clienteField) {
+        clienteField.addEventListener('input', function() {
+            if (this.value.length >= 4) {
+                // Add a small delay to avoid too many requests
+                clearTimeout(this.searchTimeout);
+                this.searchTimeout = setTimeout(() => {
+                    document.getElementById('filterForm').submit();
+                }, 500);
+            }
+        });
+    }
+
+    // Auto-submit form when other search fields change
+    const searchFields = ['id_search', 'id_cuit', 'id_numero_ot', 'id_titulo'];
+    searchFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', function() {
+                clearTimeout(this.searchTimeout);
+                this.searchTimeout = setTimeout(() => {
+                    document.getElementById('filterForm').submit();
+                }, 800);
+            });
+        }
+    });
+
+    // Auto-submit for select fields
+    const selectFields = ['id_prioridad', 'id_estado', 'id_asignado_a', 'id_estado_vencimiento', 'id_ordenar_por'];
+    selectFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+    });
+});
+</script>
 {% endblock %}
