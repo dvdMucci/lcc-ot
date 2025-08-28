@@ -38,7 +38,11 @@ class WorkLogForm(forms.ModelForm):
     
     class Meta:
         model = WorkLog
-        fields = ['start', 'end', 'task_type', 'other_task_type', 'description', 'collaborator', 'work_order', 'status']
+        fields = [
+            'start', 'end', 'task_type', 'other_task_type',
+            'general_ops_subtype', 'warranty', 'field_city', 'field_km_one_way',
+            'description', 'collaborator', 'work_order', 'status'
+        ]
         widgets = {
             'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'end': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
@@ -83,12 +87,31 @@ class WorkLogForm(forms.ModelForm):
         end = cleaned_data.get('end')
         task_type = cleaned_data.get('task_type')
         other_task_type = cleaned_data.get('other_task_type')
+        general_ops_subtype = cleaned_data.get('general_ops_subtype')
+        warranty = cleaned_data.get('warranty')
+        field_city = cleaned_data.get('field_city')
+        field_km_one_way = cleaned_data.get('field_km_one_way')
 
         if start and end and end <= start:
             raise forms.ValidationError("La hora de finalización debe ser posterior a la de inicio.")
 
         if task_type == 'Otros' and not other_task_type:
             raise forms.ValidationError("Debe especificar el tipo de tarea si eligió 'Otros'.")
+
+        if task_type == 'Operaciones generales' and not general_ops_subtype:
+            raise forms.ValidationError("Debe seleccionar un subtipo para 'Operaciones generales'.")
+
+        if task_type in ['Taller', 'Campo']:
+            # warranty es opcional, pero el campo existe; no hay validación extra
+            pass
+
+        if task_type == 'Campo':
+            if not field_city:
+                raise forms.ValidationError("Debe especificar la ciudad para tareas de 'Campo'.")
+            if field_km_one_way is None:
+                raise forms.ValidationError("Debe especificar los kilómetros de ida para tareas de 'Campo'.")
+            if field_km_one_way is not None and field_km_one_way < 0:
+                raise forms.ValidationError("Los kilómetros de ida deben ser un número positivo.")
 
         return cleaned_data
 
@@ -105,7 +128,11 @@ class WorkLogEditForm(forms.ModelForm):
     
     class Meta:
         model = WorkLog
-        fields = ['start', 'end', 'task_type', 'other_task_type', 'description', 'collaborator', 'work_order', 'status']
+        fields = [
+            'start', 'end', 'task_type', 'other_task_type',
+            'general_ops_subtype', 'warranty', 'field_city', 'field_km_one_way',
+            'description', 'collaborator', 'work_order', 'status'
+        ]
         widgets = {
             'start': forms.DateTimeInput(attrs={'type': 'text', 'class': 'form-control'}),
             'end': forms.DateTimeInput(attrs={'type': 'text', 'class': 'form-control'}),
@@ -157,11 +184,25 @@ class WorkLogEditForm(forms.ModelForm):
         end = cleaned_data.get('end')
         task_type = cleaned_data.get('task_type')
         other_task_type = cleaned_data.get('other_task_type')
+        general_ops_subtype = cleaned_data.get('general_ops_subtype')
+        field_city = cleaned_data.get('field_city')
+        field_km_one_way = cleaned_data.get('field_km_one_way')
 
         if start and end and end <= start:
             raise forms.ValidationError("La hora de finalización debe ser posterior a la de inicio.")
 
         if task_type == 'Otros' and not other_task_type:
             raise forms.ValidationError("Debe especificar el tipo de tarea si eligió 'Otros'.")
+
+        if task_type == 'Operaciones generales' and not general_ops_subtype:
+            raise forms.ValidationError("Debe seleccionar un subtipo para 'Operaciones generales'.")
+
+        if task_type == 'Campo':
+            if not field_city:
+                raise forms.ValidationError("Debe especificar la ciudad para tareas de 'Campo'.")
+            if field_km_one_way is None:
+                raise forms.ValidationError("Debe especificar los kilómetros de ida para tareas de 'Campo'.")
+            if field_km_one_way is not None and field_km_one_way < 0:
+                raise forms.ValidationError("Los kilómetros de ida deben ser un número positivo.")
 
         return cleaned_data

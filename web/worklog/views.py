@@ -131,7 +131,10 @@ class WorkLogEditView(LoginRequiredMixin, CanEditWorkLogMixin, UpdateView):
 
     def record_changes(self, old_instance, new_instance):
         """Registra los cambios en el historial"""
-        fields_to_track = ['start', 'end', 'task_type', 'other_task_type', 'description', 'work_order', 'status']
+        fields_to_track = [
+            'start', 'end', 'task_type', 'other_task_type', 'general_ops_subtype',
+            'warranty', 'field_city', 'field_km_one_way', 'description', 'work_order', 'status'
+        ]
         
         for field in fields_to_track:
             old_value = getattr(old_instance, field)
@@ -289,7 +292,8 @@ def export_worklogs_excel(request):
 
     ws.append([
         "Técnico", "Colaborador", "Inicio", "Fin", "Duración (hs)",
-        "Tipo", "Otro tipo", "Descripción", "Orden de trabajo", "Estado"
+        "Tipo", "Subtipo (Op. grales)", "Garantía", "Ciudad (Campo)", "Km ida (Campo)",
+        "Otro tipo", "Descripción", "Orden de trabajo", "Estado"
     ])
 
     for log in logs:
@@ -300,6 +304,10 @@ def export_worklogs_excel(request):
             log.end.strftime("%Y-%m-%d %H:%M"),
             log.duration(),
             log.task_type,
+            log.general_ops_subtype or '',
+            'Sí' if getattr(log, 'warranty', False) else 'No',
+            log.field_city or '',
+            log.field_km_one_way if log.field_km_one_way is not None else '',
             log.other_task_type or '',
             log.description,
             log.work_order or '',

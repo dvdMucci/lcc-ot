@@ -8,6 +8,7 @@ class WorkLog(models.Model):
         ('Taller', 'Taller'),
         ('Campo', 'Campo'),
         ('Diligencia', 'Diligencia'),
+        ('Operaciones generales', 'Operaciones generales'),
         ('Otros', 'Otros'),
     ]
 
@@ -25,8 +26,21 @@ class WorkLog(models.Model):
     collaborator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='collaborations')
     start = models.DateTimeField()
     end = models.DateTimeField()
-    task_type = models.CharField(max_length=20, choices=TASK_TYPES)
+    task_type = models.CharField(max_length=30, choices=TASK_TYPES)
     other_task_type = models.CharField(max_length=100, blank=True, null=True)
+    # Subtipo cuando es "Operaciones generales"
+    GENERAL_OPS_SUBTYPES = [
+        ('Mandados/tramites', 'Mandados/tramites'),
+        ('Tareas administrativas', 'Tareas administrativas'),
+        ('Movimiento de vehiculos', 'Movimiento de vehiculos'),
+        ('Limpieza', 'Limpieza'),
+    ]
+    general_ops_subtype = models.CharField(max_length=40, choices=GENERAL_OPS_SUBTYPES, blank=True, null=True)
+    # Indicador de garantía para Taller o Campo
+    warranty = models.BooleanField(default=False)
+    # Datos adicionales para Campo
+    field_city = models.CharField(max_length=100, blank=True, null=True)
+    field_km_one_way = models.PositiveIntegerField(blank=True, null=True)
     description = models.TextField()
     work_order = models.CharField(max_length=50, null=True, blank=True)
     work_order_ref = models.ForeignKey(

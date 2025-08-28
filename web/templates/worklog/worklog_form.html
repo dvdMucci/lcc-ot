@@ -4,6 +4,13 @@
     <h2>Registrar tarea</h2>
     <form method="post">
         {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="mb-3">
             <label for="id_start" class="form-label">Fecha y hora de inicio</label>
@@ -23,6 +30,66 @@
         <div class="mb-3" id="other-type-container" style="display:none;">
             <label for="id_other_task_type" class="form-label">Especificar otro tipo</label>
             {{ form.other_task_type }}
+            {% if form.other_task_type.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.other_task_type.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3" id="general-ops-subtype-container" style="display:none;">
+            <label for="id_general_ops_subtype" class="form-label">Subtipo (Operaciones generales)</label>
+            {{ form.general_ops_subtype }}
+            {% if form.general_ops_subtype.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.general_ops_subtype.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="form-check mb-3" id="warranty-container" style="display:none;">
+            {{ form.warranty }}
+            <label class="form-check-label" for="id_warranty">¿Es garantía?</label>
+            {% if form.warranty.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.warranty.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="row" id="campo-extra-container" style="display:none;">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="id_field_city" class="form-label">Ciudad</label>
+                    {{ form.field_city }}
+                    {% if form.field_city.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.field_city.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="id_field_km_one_way" class="form-label">Kilómetros de ida</label>
+                    {{ form.field_km_one_way }}
+                    {% if form.field_km_one_way.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.field_km_one_way.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="mb-3">
@@ -76,7 +143,14 @@
     function toggleOtherField() {
         const tipo = document.getElementById("id_task_type").value;
         const contenedorOtros = document.getElementById("other-type-container");
+        const contenedorSubtipo = document.getElementById("general-ops-subtype-container");
+        const contenedorGarantia = document.getElementById("warranty-container");
+        const contenedorCampo = document.getElementById("campo-extra-container");
+
         contenedorOtros.style.display = (tipo === "Otros") ? "block" : "none";
+        contenedorSubtipo.style.display = (tipo === "Operaciones generales") ? "block" : "none";
+        contenedorGarantia.style.display = (tipo === "Taller" || tipo === "Campo") ? "block" : "none";
+        contenedorCampo.style.display = (tipo === "Campo") ? "block" : "none";
     }
 
     document.addEventListener("DOMContentLoaded", function () {

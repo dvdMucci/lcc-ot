@@ -12,6 +12,13 @@
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         
                         <div class="row">
                             <div class="col-md-6">
@@ -95,12 +102,39 @@
                             {% endif %}
                         </div>
 
+                        <div class="mb-3" id="general_ops_subtype_field" style="display: none;">
+                            <label for="{{ form.general_ops_subtype.id_for_label }}" class="form-label">
+                                <i class="fas fa-list"></i> Subtipo (Operaciones generales)
+                            </label>
+                            {{ form.general_ops_subtype }}
+                        </div>
+
+                        <div class="form-check mb-3" id="warranty_field" style="display: none;">
+                            {{ form.warranty }}
+                            <label class="form-check-label" for="{{ form.warranty.id_for_label }}">¿Es garantía?</label>
+                        </div>
+
+                        <div class="row" id="campo_extra_fields" style="display: none;">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.field_city.id_for_label }}" class="form-label">Ciudad</label>
+                                    {{ form.field_city }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.field_km_one_way.id_for_label }}" class="form-label">Kilómetros de ida</label>
+                                    {{ form.field_km_one_way }}
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="{{ form.description.id_for_label }}" class="form-label">
                                 <i class="fas fa-align-left"></i> Descripción detallada
                             </label>
                             <div class="d-flex align-items-start">
-                                <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="copyToClipboard('{{ form.description.value|default:"w"|escapejs }}')" title="Copiar descripción">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-2" data-text="{{ form.description.value|default:' '|escapejs }}" onclick="copyToClipboard(this.dataset.text)" title="Copiar descripción">
                                     <i class="fas fa-copy"></i>
                                 </button>
                                 <div class="flex-grow-1">
@@ -187,11 +221,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function toggleOtherTaskType() {
-        if (taskTypeField.value === 'Otros') {
-            otherTaskTypeField.style.display = 'block';
-        } else {
-            otherTaskTypeField.style.display = 'none';
-        }
+        const generalOpsField = document.getElementById('general_ops_subtype_field');
+        const warrantyField = document.getElementById('warranty_field');
+        const campoFields = document.getElementById('campo_extra_fields');
+
+        otherTaskTypeField.style.display = (taskTypeField.value === 'Otros') ? 'block' : 'none';
+        generalOpsField.style.display = (taskTypeField.value === 'Operaciones generales') ? 'block' : 'none';
+        warrantyField.style.display = (taskTypeField.value === 'Taller' || taskTypeField.value === 'Campo') ? 'block' : 'none';
+        campoFields.style.display = (taskTypeField.value === 'Campo') ? 'block' : 'none';
     }
     
     taskTypeField.addEventListener('change', toggleOtherTaskType);

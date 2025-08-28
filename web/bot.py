@@ -188,6 +188,11 @@ def build_summary_text_and_markup(context: ContextTypes.DEFAULT_TYPE):
     duration = context.user_data.get("duration_td", timedelta())
     work_order = context.user_data.get("work_order")
     collaborator = context.user_data.get("collaborator")
+    other_task_type = context.user_data.get("other_task_type")
+    general_ops_subtype = context.user_data.get("general_ops_subtype")
+    warranty = context.user_data.get("warranty")
+    field_city = context.user_data.get("field_city")
+    field_km_one_way = context.user_data.get("field_km_one_way")
 
     hours = int(duration.total_seconds() // 3600)
     minutes = int((duration.total_seconds() % 3600) // 60)
@@ -196,6 +201,19 @@ def build_summary_text_and_markup(context: ContextTypes.DEFAULT_TYPE):
     summary = (
         f"📋 <b>Resumen de la Tarea</b>\n\n"
         f"🔧 <b>Tipo:</b> {task_type}\n"
+    )
+    if task_type == "Otros" and other_task_type:
+        summary += f"🧩 <b>Otro tipo:</b> {other_task_type}\n"
+    if task_type == "Operaciones generales" and general_ops_subtype:
+        summary += f"⚙️ <b>Subtipo:</b> {general_ops_subtype}\n"
+    if task_type in ["Taller", "Campo"] and warranty is not None:
+        summary += f"🛡️ <b>Garantía:</b> {'Sí' if warranty else 'No'}\n"
+    if task_type == "Campo":
+        if field_city:
+            summary += f"🏙️ <b>Ciudad:</b> {field_city}\n"
+        if field_km_one_way is not None:
+            summary += f"🛣️ <b>Km ida:</b> {field_km_one_way}\n"
+    summary += (
         f"📝 <b>Descripción:</b> {description}\n"
         f"📊 <b>Estado:</b> {status}\n"
         f"⏱️ <b>Duración:</b> {duration_str}\n"
@@ -322,6 +340,10 @@ async def callback_query_router(update: Update, context: ContextTypes.DEFAULT_TY
             return await handle_work_order_selection_direct(query, context)
         if data.startswith("task_type:"):
             return await handle_task_type_selection_direct(query, context)
+        if data.startswith("general_ops_subtype:" ):
+            return await handle_general_ops_subtype(query, context)
+        if data.startswith("warranty:"):
+            return await handle_warranty(query, context)
         if data.startswith("status_direct:"):
             return await handle_status_selection_direct(query, context)
         if data.startswith("colaborador_direct:"):
@@ -337,9 +359,9 @@ async def callback_query_router(update: Update, context: ContextTypes.DEFAULT_TY
         if data == "edit_transcription_audio":
             return await handle_edit_transcription_audio(query, context)
         if data == "volver_tareas":
-            return await tareas(update, context)
+            return await volver_tareas_callback(query, context)
         if data == "volver_ordenes":
-            return await ver_OTs(update, context)
+            return await volver_ordenes_callback(query, context)
         if data == "cancelar":
             return await cancel(update, context)
 
@@ -350,6 +372,81 @@ async def callback_query_router(update: Update, context: ContextTypes.DEFAULT_TY
             await update.callback_query.edit_message_text("❌ Error interno del bot.")
         except Exception:
             pass
+
+async def volver_tareas_callback(query, context):
+    """Wrapper para volver a tareas desde callback"""
+    try:
+        if not ensure_db_connection():
+            await query.edit_message_text("❌ Error de conexión a DB. Probá más tarde.")
+            return
+
+        chat_id = query.message.chat.id
+        user = get_user_from_chat(chat_id)
+        if not user:
+            await query.edit_message_text("🚫 No estás autorizado.")
+            return
+
+        try:
+            tareas_qs = WorkLog.objects.filter(
+                models.Q(technician=user) | models.Q(collaborator=user)
+            ).exclude(status="cerrada").order_by("-start")
+        except Exception as e:
+            logger.error(f"Error al obtener tareas: {e}")
+            await query.edit_message_text("❌ No pude obtener tus tareas.")
+            return
+
+        if not tareas_qs.exists():
+            await query.edit_message_text("No tenés tareas activas asignadas o como colaborador.")
+            return
+
+        buttons = []
+        for t in tareas_qs[:25]:
+            rol = "👷 Técnico" if t.technician == user else "🤝 Colaborador"
+            texto = f"{rol} | {t.start.strftime('%d-%m %H:%M')} | {t.description[:35]}..."
+            buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_tarea:{t.id}")])
+        buttons.append([InlineKeyboardButton("➕ Nueva Tarea", callback_data="nueva_tarea_bot")])
+
+        await query.edit_message_text("📋 Tus tareas activas:", reply_markup=InlineKeyboardMarkup(buttons))
+    except Exception as e:
+        logger.error(f"volver_tareas_callback error: {e}")
+        await query.edit_message_text("❌ Error interno del bot.")
+
+async def volver_ordenes_callback(query, context):
+    """Wrapper para volver a órdenes desde callback"""
+    try:
+        if not ensure_db_connection():
+            await query.edit_message_text("❌ Error de conexión a DB. Probá más tarde.")
+            return
+
+        chat_id = query.message.chat.id
+        user = get_user_from_chat(chat_id)
+        if not user:
+            await query.edit_message_text("🚫 No estás autorizado.")
+            return
+
+        from work_order.models import WorkOrder
+
+        assigned_orders = WorkOrder.objects.filter(asignado_a=user).exclude(estado="cerrada")
+        collaborator_orders = WorkOrder.objects.filter(worklogs__collaborator=user).exclude(estado="cerrada").distinct()
+        all_orders = assigned_orders.union(collaborator_orders)
+
+        if not all_orders.exists():
+            await query.edit_message_text("No tenés órdenes asignadas o como colaborador.")
+            return
+
+        prioridad_emoji = {"urgente": "🔴", "alta": "🟠", "media": "🟡", "baja": "🟢"}
+        buttons = []
+        for o in all_orders[:25]:
+            rol = "👷 Asignado" if o.asignado_a == user else "🤝 Colaborador"
+            emoji = prioridad_emoji.get(o.prioridad, "⚪")
+            texto = f"{emoji} {o.numero} | {rol} | {o.titulo[:30]}..."
+            buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_orden:{o.id}")])
+
+        buttons.append([InlineKeyboardButton("➕ Nueva Tarea", callback_data="nueva_tarea_bot")])
+        await query.edit_message_text("📋 Tus órdenes de trabajo:", reply_markup=InlineKeyboardMarkup(buttons))
+    except Exception as e:
+        logger.error(f"volver_ordenes_callback error: {e}")
+        await query.edit_message_text("❌ Error interno del bot.")
 
 async def show_task_detail(query, context):
     try:
@@ -368,6 +465,23 @@ async def show_task_detail(query, context):
             f"📆 Fin: {t.end.strftime('%Y-%m-%d %H:%M')}\n"
             f"⏱️ Duración: {t.duration()} hs\n"
             f"🔧 Tipo: {t.task_type}\n"
+        )
+        # Mostrar subtipo para Operaciones generales
+        if t.task_type == "Operaciones generales" and t.general_ops_subtype:
+            msg += f"⚙️ Subtipo: {t.general_ops_subtype}\n"
+        # Mostrar otro tipo para Otros
+        if t.task_type == "Otros" and t.other_task_type:
+            msg += f"🧩 Otro tipo: {t.other_task_type}\n"
+        # Mostrar garantía para Taller/Campo
+        if t.task_type in ["Taller", "Campo"]:
+            msg += f"🛡️ Garantía: {'Sí' if getattr(t, 'warranty', False) else 'No'}\n"
+        # Mostrar ciudad y km para Campo
+        if t.task_type == "Campo":
+            if t.field_city:
+                msg += f"🏙️ Ciudad: {t.field_city}\n"
+            if t.field_km_one_way is not None:
+                msg += f"🛣️ Km ida: {t.field_km_one_way}\n"
+        msg += (
             f"📊 Estado: {t.get_status_display()}\n"
             f"📝 Descripción:\n{t.description}\n"
         )
@@ -520,6 +634,7 @@ async def ask_task_type_selection(update_or_query, context):
             [InlineKeyboardButton("🏭 Taller", callback_data="task_type:Taller")],
             [InlineKeyboardButton("🌍 Campo", callback_data="task_type:Campo")],
             [InlineKeyboardButton("📋 Diligencia", callback_data="task_type:Diligencia")],
+            [InlineKeyboardButton("⚙️ Operaciones generales", callback_data="task_type:Operaciones generales")],
             [InlineKeyboardButton("🔧 Otros", callback_data="task_type:Otros")],
             [InlineKeyboardButton("❌ Cancelar Tarea", callback_data="cancelar")],
         ]
@@ -530,10 +645,85 @@ async def ask_task_type_selection(update_or_query, context):
     except Exception as e:
         logger.error(f"ask_task_type_selection error: {e}")
 
+async def ask_general_ops_subtype(update_or_query, context):
+    try:
+        buttons = [
+            [InlineKeyboardButton("📦 Mandados/trámites", callback_data="general_ops_subtype:Mandados/tramites")],
+            [InlineKeyboardButton("🗂️ Tareas administrativas", callback_data="general_ops_subtype:Tareas administrativas")],
+            [InlineKeyboardButton("🚗 Movimiento de vehículos", callback_data="general_ops_subtype:Movimiento de vehiculos")],
+            [InlineKeyboardButton("🧹 Limpieza", callback_data="general_ops_subtype:Limpieza")],
+            [InlineKeyboardButton("❌ Cancelar Tarea", callback_data="cancelar")],
+        ]
+        if hasattr(update_or_query, "data"):
+            await update_or_query.edit_message_text("⚙️ Elegí el subtipo de Operaciones generales:", reply_markup=InlineKeyboardMarkup(buttons))
+        else:
+            await update_or_query.effective_chat.send_message("⚙️ Elegí el subtipo de Operaciones generales:", reply_markup=InlineKeyboardMarkup(buttons))
+        context.user_data["waiting_for_general_ops_subtype"] = True
+    except Exception as e:
+        logger.error(f"ask_general_ops_subtype error: {e}")
+
+async def handle_general_ops_subtype(query, context):
+    try:
+        subtype = query.data.split(":")[1]
+        context.user_data["general_ops_subtype"] = subtype
+        context.user_data["waiting_for_general_ops_subtype"] = False
+        context.user_data["waiting_for_description"] = True
+        await query.edit_message_text(f"✅ Subtipo seleccionado: {subtype}\n📝 Enviá la descripción de la tarea (texto o audio).")
+    except Exception as e:
+        logger.error(f"handle_general_ops_subtype error: {e}")
+        await query.edit_message_text("❌ Error interno del bot.")
+
+async def ask_warranty(update_or_query, context):
+    try:
+        buttons = [
+            [InlineKeyboardButton("🛡️ Sí, es garantía", callback_data="warranty:yes")],
+            [InlineKeyboardButton("❌ No", callback_data="warranty:no")],
+        ]
+        if hasattr(update_or_query, "data"):
+            await update_or_query.edit_message_text("🛡️ ¿La tarea es garantía?", reply_markup=InlineKeyboardMarkup(buttons))
+        else:
+            await update_or_query.effective_chat.send_message("🛡️ ¿La tarea es garantía?", reply_markup=InlineKeyboardMarkup(buttons))
+        context.user_data["waiting_for_warranty"] = True
+    except Exception as e:
+        logger.error(f"ask_warranty error: {e}")
+
+async def handle_warranty(query, context):
+    try:
+        val = query.data.split(":")[1]
+        context.user_data["warranty"] = (val == "yes")
+        context.user_data["waiting_for_warranty"] = False
+        if context.user_data.get("task_type") == "Campo":
+            await ask_field_city(query, context)
+            return
+        context.user_data["waiting_for_description"] = True
+        await query.edit_message_text("📝 Enviá la descripción de la tarea (texto o audio).")
+    except Exception as e:
+        logger.error(f"handle_warranty error: {e}")
+        await query.edit_message_text("❌ Error interno del bot.")
+
+async def ask_field_city(update_or_query, context):
+    try:
+        if hasattr(update_or_query, "data"):
+            await update_or_query.edit_message_text("🏙️ Ingresá la ciudad (Campo):")
+        else:
+            await update_or_query.effective_chat.send_message("🏙️ Ingresá la ciudad (Campo):")
+        context.user_data["waiting_for_field_city"] = True
+    except Exception as e:
+        logger.error(f"ask_field_city error: {e}")
 async def handle_task_type_selection_direct(query, context):
     try:
         task_type_value = query.data.split(":")[1]
         context.user_data["task_type"] = task_type_value
+        if task_type_value == "Operaciones generales":
+            await ask_general_ops_subtype(query, context)
+            return
+        if task_type_value in ["Taller", "Campo"]:
+            await ask_warranty(query, context)
+            return
+        if task_type_value == "Otros":
+            context.user_data["waiting_for_other_task_type"] = True
+            await query.edit_message_text("✍️ Escribí el 'Otro tipo' de tarea.")
+            return
         context.user_data["waiting_for_description"] = True
         await query.edit_message_text("📝 Enviá la descripción de la tarea (texto o audio).")
     except Exception as e:
@@ -674,6 +864,11 @@ async def save_task_direct(query, context):
             start=start_time,
             end=end_time,
             task_type=task_type,
+            other_task_type=context.user_data.get("other_task_type") if task_type == "Otros" else None,
+            general_ops_subtype=context.user_data.get("general_ops_subtype") if task_type == "Operaciones generales" else None,
+            warranty=context.user_data.get("warranty", False) if task_type in ["Taller", "Campo"] else False,
+            field_city=context.user_data.get("field_city") if task_type == "Campo" else None,
+            field_km_one_way=context.user_data.get("field_km_one_way") if task_type == "Campo" else None,
             description=final_description,
             status=status_value,
             work_order=work_order_value,
@@ -761,7 +956,16 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
       - awaiting_transcription_for_summary
     """
     try:
-        # 1) ¿Esperamos descripción?
+        # 1a) ¿Esperamos 'otro tipo'?
+        if context.user_data.get("waiting_for_other_task_type"):
+            other_text = update.message.text or ""
+            context.user_data["other_task_type"] = other_text.strip()
+            context.user_data["waiting_for_other_task_type"] = False
+            context.user_data["waiting_for_description"] = True
+            await update.message.reply_text("📝 Enviá la descripción de la tarea (texto o audio).")
+            return
+
+        # 1b) ¿Esperamos descripción?
         if context.user_data.get("waiting_for_description"):
             if update.message.voice:
                 # Guardar audio y lanzar transcripción
@@ -835,7 +1039,39 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
             await ask_status_direct(update, context)
             return
 
-        # 2) ¿Esperamos duración?
+        # 2a) ¿Esperamos subtipo de Operaciones generales?
+        if context.user_data.get("waiting_for_general_ops_subtype"):
+            # No manejamos por texto; viene por callback
+            return
+
+        # 2b) ¿Esperamos garantía?
+        if context.user_data.get("waiting_for_warranty"):
+            # No manejamos por texto; viene por callback
+            return
+
+        # 2c) ¿Esperamos ciudad/kms de Campo?
+        if context.user_data.get("waiting_for_field_city"):
+            city = update.message.text or ""
+            context.user_data["field_city"] = city.strip()
+            context.user_data["waiting_for_field_city"] = False
+            context.user_data["waiting_for_field_km"] = True
+            await update.message.reply_text("🛣️ Ingresá los kilómetros de ida (número entero).")
+            return
+        if context.user_data.get("waiting_for_field_km"):
+            km_text = update.message.text or ""
+            try:
+                km_val = int(km_text)
+                if km_val < 0:
+                    raise ValueError()
+                context.user_data["field_km_one_way"] = km_val
+                context.user_data["waiting_for_field_km"] = False
+                context.user_data["waiting_for_description"] = True
+                await update.message.reply_text("📝 Enviá la descripción de la tarea (texto o audio).")
+            except ValueError:
+                await update.message.reply_text("❌ Debe ser un número entero positivo. Probá de nuevo.")
+            return
+
+        # 2d) ¿Esperamos duración?
         if context.user_data.get("waiting_for_duration"):
             duration_text = update.message.text or ""
             try:
