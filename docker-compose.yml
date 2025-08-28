@@ -21,6 +21,7 @@ services:
       dockerfile: Dockerfile
     container_name: django_web_app
     restart: always
+    user: "${UID:-1000}:${GID:-1000}"  # Usar tu usuario en lugar de root
     volumes:
       - ./web:/app  # Mapea tu código local para desarrollo en tiempo real
     command: ["./wait-for-db.sh", "sh", "-c", "python manage.py makemigrations work_order && python manage.py makemigrations worklog && python manage.py makemigrations clients && python manage.py makemigrations accounts && python manage.py makemigrations core && python manage.py migrate && python create_superuser.py && python bot.py & exec python manage.py runserver 0.0.0.0:8000"]

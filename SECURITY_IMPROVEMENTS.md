@@ -90,6 +90,14 @@ Este documento describe las mejoras de seguridad implementadas en el repositorio
 - [x] Logging configurado para producción
 - [x] Bot separado en contenedor independiente
 
+### ✅ Completado (Nuevo)
+- [x] **Validaciones de seguridad del bot de Telegram**
+  - Filtrado de texto malicioso (comandos, URLs, scripts, SQL)
+  - Validación de archivos de audio (duración, tamaño, formato)
+  - Sanitización automática de contenido
+  - Logging de eventos de seguridad
+  - Configuración centralizada y personalizable
+
 ### 🔄 Pendiente (Requerirían más cambios)
 - [ ] Antivirus para archivos adjuntos (ClamAV)
 - [ ] Almacenamiento en S3 con presigned URLs
@@ -149,6 +157,7 @@ SECURE_SSL_REDIRECT=True
 ### Riesgo Reducido
 - **ALTO**: Bypass de permisos para técnicos
 - **ALTO**: Servidor de desarrollo en producción
+- **ALTO**: Ataques a través del bot de Telegram (texto/audio malicioso)
 - **MEDIO**: Subida de malware/archivos maliciosos
 - **MEDIO**: Ataques de scraping/DOS
 - **MEDIO**: Configuración insegura de cookies/headers
@@ -162,3 +171,6 @@ SECURE_SSL_REDIRECT=True
 - ✅ Bot aislado en contenedor independiente
 - ✅ Validación robusta de archivos
 - ✅ API REST más segura y escalable
+- ✅ Bot de Telegram protegido contra ataques
+- ✅ Filtrado automático de contenido malicioso
+- ✅ Auditoría completa de eventos de seguridad

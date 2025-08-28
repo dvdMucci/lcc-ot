@@ -78,6 +78,14 @@ SELECTING_WORK_ORDER, SELECTING_TASK_TYPE, ENTERING_DESCRIPTION, SELECTING_STATU
 # ----------------------------
 from faster_whisper import WhisperModel
 
+# ----------------------------
+# Seguridad del bot
+# ----------------------------
+from bot_security import (
+    validate_text, validate_audio_file, validate_audio_duration,
+    sanitize_text, get_file_info, log_security_event
+)
+
 FW_MODEL = None
 
 def get_fw_model() -> WhisperModel:
@@ -984,7 +992,20 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         # 1a) ¿Esperamos 'otro tipo'?
         if context.user_data.get("waiting_for_other_task_type"):
-            other_text = update.message.text or ""
+            raw_text = update.message.text or ""
+            
+            # Validar texto
+            text_valid, text_error = validate_text(raw_text)
+            if not text_valid:
+                await update.message.reply_text(f"❌ {text_error}")
+                log_security_event("other_task_type_rejected", {
+                    "text_length": len(raw_text),
+                    "error": text_error
+                }, update.effective_user.id)
+                return
+            
+            # Sanitizar texto
+            other_text = sanitize_text(raw_text)
             context.user_data["other_task_type"] = other_text.strip()
             context.user_data["waiting_for_other_task_type"] = False
             context.user_data["waiting_for_description"] = True
@@ -994,6 +1015,16 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
         # 1b) ¿Esperamos descripción?
         if context.user_data.get("waiting_for_description"):
             if update.message.voice:
+                # Validar duración del audio
+                duration_valid, duration_error = validate_audio_duration(update.message.voice.duration)
+                if not duration_valid:
+                    await update.message.reply_text(f"❌ {duration_error}")
+                    log_security_event("audio_duration_rejected", {
+                        "duration": update.message.voice.duration,
+                        "error": duration_error
+                    }, update.effective_user.id)
+                    return
+
                 # Guardar audio y lanzar transcripción
                 audio_file = await context.bot.get_file(update.message.voice.file_id)
 
@@ -1005,14 +1036,33 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
 
                 await audio_file.download_to_drive(abs_path)
 
-                # Tamaño (debug)
+                # Validar archivo de audio
                 try:
                     size_bytes = os.path.getsize(abs_path)
-                    logger.info(f"Audio guardado: {abs_path} ({size_bytes} bytes)")
-                    if size_bytes == 0:
-                        await update.message.reply_text("⚠️ El audio parece estar vacío (0 bytes).")
-                except Exception:
-                    logger.warning("No se pudo obtener tamaño del archivo.")
+                    file_info = get_file_info(abs_path)
+                    
+                    # Validar archivo
+                    audio_valid, audio_error = validate_audio_file(abs_path, size_bytes)
+                    if not audio_valid:
+                        # Eliminar archivo inválido
+                        try:
+                            os.remove(abs_path)
+                        except:
+                            pass
+                        
+                        await update.message.reply_text(f"❌ {audio_error}")
+                        log_security_event("audio_file_rejected", {
+                            "file_info": file_info,
+                            "error": audio_error
+                        }, update.effective_user.id)
+                        return
+                    
+                    logger.info(f"Audio validado y guardado: {abs_path} ({size_bytes} bytes)")
+                    
+                except Exception as e:
+                    logger.error(f"Error validando audio: {e}")
+                    await update.message.reply_text("❌ Error al procesar el archivo de audio")
+                    return
 
                 context.user_data["audio_file_relative"] = rel_path
                 context.user_data["pending_transcription"] = True
@@ -1023,10 +1073,35 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
                         text = await fw_transcribe_in_executor(apath)
                         if context.user_data is not None:
                             if text:
+                                # Validar texto transcrito
+                                text_valid, text_error = validate_text(text)
+                                if not text_valid:
+                                    # Sanitizar texto si es muy largo o tiene caracteres problemáticos
+                                    sanitized_text = sanitize_text(text)
+                                    if len(sanitized_text) < 50:  # Si después de sanitizar es muy corto
+                                        context.user_data["description"] = "[Audio adjunto - Transcripción no válida]"
+                                        context.user_data["pending_transcription"] = False
+                                        await context.bot.send_message(
+                                            chat_id, 
+                                            f"⚠️ Transcripción rechazada por seguridad: {text_error}"
+                                        )
+                                        log_security_event("transcription_rejected", {
+                                            "error": text_error,
+                                            "original_length": len(text)
+                                        }, update.effective_user.id)
+                                        return
+                                    else:
+                                        text = sanitized_text
+                                        await context.bot.send_message(
+                                            chat_id, 
+                                            f"📝 Transcripción sanitizada:\n{text}"
+                                        )
+                                else:
+                                    await context.bot.send_message(chat_id, f"📝 Transcripción lista:\n{text}")
+                                
                                 context.user_data["description"] = text
                                 context.user_data["transcription_complete"] = True
                                 context.user_data["pending_transcription"] = False
-                                await context.bot.send_message(chat_id, f"📝 Transcripción lista:\n{text}")
                             else:
                                 context.user_data["description"] = "[Audio adjunto - Sin texto detectado]"
                                 context.user_data["pending_transcription"] = False
@@ -1055,8 +1130,21 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
                 await update.message.reply_text("🎵 Audio recibido. Transcribiendo…")
 
             else:
-                # Texto directo
-                description = update.message.text or ""
+                # Texto directo - Validar contenido
+                raw_text = update.message.text or ""
+                
+                # Validar texto
+                text_valid, text_error = validate_text(raw_text)
+                if not text_valid:
+                    await update.message.reply_text(f"❌ {text_error}")
+                    log_security_event("text_rejected", {
+                        "text_length": len(raw_text),
+                        "error": text_error
+                    }, update.effective_user.id)
+                    return
+                
+                # Sanitizar texto
+                description = sanitize_text(raw_text)
                 context.user_data["description"] = description
                 context.user_data["transcription_complete"] = True
                 context.user_data["pending_transcription"] = False
@@ -1077,29 +1165,67 @@ async def handle_text_or_voice(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # 2c) ¿Esperamos ciudad/kms de Campo?
         if context.user_data.get("waiting_for_field_city"):
-            city = update.message.text or ""
-            context.user_data["field_city"] = city.strip()
+            raw_text = update.message.text or ""
+            
+            # Validar texto (más permisivo para nombres de ciudades)
+            if len(raw_text) > 100:  # Límite más alto para nombres de ciudades
+                await update.message.reply_text("❌ Nombre de ciudad demasiado largo. Máximo 100 caracteres.")
+                log_security_event("city_name_rejected", {
+                    "text_length": len(raw_text)
+                }, update.effective_user.id)
+                return
+            
+            # Sanitizar texto (solo caracteres básicos para nombres)
+            city = re.sub(r'[^\w\s\-\.]', '', raw_text).strip()
+            if not city:
+                await update.message.reply_text("❌ Nombre de ciudad inválido.")
+                return
+            
+            context.user_data["field_city"] = city
             context.user_data["waiting_for_field_city"] = False
             context.user_data["waiting_for_field_km"] = True
             await update.message.reply_text("🛣️ Ingresá los kilómetros de ida (número entero).")
             return
         if context.user_data.get("waiting_for_field_km"):
             km_text = update.message.text or ""
+            
+            # Validar que sea solo números
+            if not km_text.isdigit():
+                await update.message.reply_text("❌ Debe ser un número entero positivo. Probá de nuevo.")
+                log_security_event("km_input_rejected", {
+                    "input": km_text
+                }, update.effective_user.id)
+                return
+            
             try:
                 km_val = int(km_text)
-                if km_val < 0:
+                if km_val < 0 or km_val > 9999:  # Límite razonable para kilómetros
                     raise ValueError()
                 context.user_data["field_km_one_way"] = km_val
                 context.user_data["waiting_for_field_km"] = False
                 context.user_data["waiting_for_description"] = True
                 await update.message.reply_text("📝 Enviá la descripción de la tarea (texto o audio).")
             except ValueError:
-                await update.message.reply_text("❌ Debe ser un número entero positivo. Probá de nuevo.")
+                await update.message.reply_text("❌ Debe ser un número entero positivo entre 0 y 9999. Probá de nuevo.")
             return
 
         # 2d) ¿Esperamos duración?
         if context.user_data.get("waiting_for_duration"):
             duration_text = update.message.text or ""
+            
+            # Validar formato básico
+            if len(duration_text) > 10:  # Límite razonable para formato de tiempo
+                await update.message.reply_text("❌ Formato de duración inválido. Usá H:MM (ej: 2:30) o minutos (ej: 24).")
+                log_security_event("duration_format_rejected", {
+                    "input": duration_text
+                }, update.effective_user.id)
+                return
+            
+            # Validar que solo contenga caracteres permitidos
+            if not re.match(r'^[\d:]+$', duration_text):
+                await update.message.reply_text("❌ Formato inválido. Solo números y dos puntos. Usá H:MM (ej: 2:30) o minutos (ej: 24).")
+                return
+            
             try:
                 td = parse_hhmm_to_timedelta(duration_text)
                 context.user_data["duration_td"] = td
