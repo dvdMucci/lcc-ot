@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+import os
 
 User = get_user_model()
 
@@ -44,28 +45,28 @@ class WorkLog(models.Model):
     description = models.TextField()
     work_order = models.CharField(max_length=50, null=True, blank=True)
     work_order_ref = models.ForeignKey(
-        'work_order.WorkOrder', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
+        'work_order.WorkOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="worklogs"
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendiente')
 
     # Campos de auditoría - con valores por defecto para migración
     created_by = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
+        User,
+        on_delete=models.CASCADE,
         related_name='created_worklogs',
         null=True,  # Temporal para migración
         blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_by = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='updated_worklogs', 
-        null=True, 
+        User,
+        on_delete=models.CASCADE,
+        related_name='updated_worklogs',
+        null=True,
         blank=True
     )
     updated_at = models.DateTimeField(auto_now=True)
@@ -81,27 +82,51 @@ class WorkLog(models.Model):
         # Si no hay created_by, usar technician como creador
         if not self.created_by:
             self.created_by = self.technician
-        
+
         # Guardar primero para obtener el ID
         super().save(*args, **kwargs)
-        
+
         # Actualizar el estado de la orden de trabajo asociada si existe
         self.update_work_order_status()
-    
+
+    def delete(self, *args, **kwargs):
+        """Eliminar el archivo de audio físico antes de borrar el registro"""
+        if self.audio_file:
+            try:
+                # Obtener la ruta completa del archivo
+                from django.conf import settings
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                file_path = os.path.join(settings.MEDIA_ROOT, str(self.audio_file))
+                
+                # Verificar si el archivo existe y eliminarlo
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Archivo de audio eliminado: {file_path}")
+                else:
+                    logger.warning(f"Archivo de audio no encontrado: {file_path}")
+                    
+            except Exception as e:
+                logger.error(f"Error al eliminar archivo de audio: {e}")
+        
+        # Llamar al método delete() original
+        super().delete(*args, **kwargs)
+
     def update_work_order_status(self):
         """Actualiza el estado de la orden de trabajo asociada basándose en el estado de esta tarea"""
         if self.work_order_ref:
             # Mapeo de estados de tarea a estados de orden de trabajo
             status_mapping = {
                 'abierta': 'abierta',
-                'pendiente': 'pendiente', 
+                'pendiente': 'pendiente',
                 'en_proceso': 'en_proceso',
                 'en_espera_repuestos': 'en_espera_repuestos',
                 'completada': 'completada',
                 'cancelada': 'cancelada',
                 'cerrada': 'cerrada'
             }
-            
+
             new_status = status_mapping.get(self.status)
             if new_status and new_status != self.work_order_ref.estado:
                 self.work_order_ref.estado = new_status
