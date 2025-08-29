@@ -14,6 +14,7 @@ openpyxl
 python-telegram-bot
 torch
 gunicorn
+django-csp
 
 # faster-whisper (usa CTranslate2 en CPU)
 faster-whisper==1.0.3

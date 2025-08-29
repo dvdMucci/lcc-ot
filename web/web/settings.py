@@ -44,13 +44,15 @@ INSTALLED_APPS = [
     'django_otp',
     'django_otp.plugins.otp_totp',
     'django_otp.plugins.otp_static',
-    
+    'csp'
 ]
 
 AUTH_USER_MODEL = 'accounts.CustomUser'  # Usar el modelo de usuario personalizado
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware', # Middleware para CSP
+    'web.middleware.AdminIPRestrictMiddleware', # Middleware para restringir acceso admin por IP
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -142,7 +144,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
-#STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # Directorio static en la raíz del proyecto
+]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -158,3 +162,51 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # OTP Settings
 OTP_TOTP_ISSUER = 'LCC OT' # Nombre del emisor para la aplicación 2FA
 OTP_LOGIN_URL = '/accounts/login/' # URL de login para OTP
+
+# =============================
+# CONFIGURACIÓN DE SEGURIDAD CSP (Nuevo formato)
+# =============================
+
+# Content Security Policy - Nuevo formato para django-csp >= 4.0
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': ("'self'",),
+        'script-src': (
+            "'self'",
+            "cdn.jsdelivr.net",           # Bootstrap JS
+            "cdnjs.cloudflare.com",       # Font Awesome
+        ),
+        'style-src': (
+            "'self'",
+            "'unsafe-inline'",            # Permitir estilos inline (temporal)
+            "cdn.jsdelivr.net",           # Bootstrap CSS
+            "cdnjs.cloudflare.com",       # Font Awesome CSS
+        ),
+        'img-src': (
+            "'self'",
+            "data:",                      # Imágenes base64
+        ),
+        'font-src': (
+            "'self'",
+            "cdnjs.cloudflare.com",       # Font Awesome fonts
+        ),
+        'connect-src': ("'self'",),       # AJAX requests
+        'object-src': ("'none'",),        # No flash/plugins
+        'base-uri': ("'self'",),          # Base URLs permitidas
+        'form-action': ("'self'",),       # Formularios solo a mismo origen
+    }
+}
+
+# Opcional: Reportes de violaciones CSP
+# CSP_REPORT_URI = '/csp-report/'
+
+# =============================
+# CONFIGURACIÓN DE SEGURIDAD ADMIN
+# =============================
+
+# IPs permitidas para acceder al panel admin de Django
+ADMIN_ALLOWED_IPS = [
+    '172.29.0.0/16',  # Rango de red Docker
+    '127.0.0.1',      # Localhost
+    '::1',            # IPv6 localhost
+]

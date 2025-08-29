@@ -92,12 +92,18 @@ def get_fw_model() -> WhisperModel:
     global FW_MODEL
     if FW_MODEL is None:
         logger.info("Cargando faster-whisper 'medium' (CPU, int8)…")
+        
+        # Configurar directorio de cache personalizado
+        cache_dir = os.path.join(os.getcwd(), '.cache', 'huggingface')
+        os.makedirs(cache_dir, exist_ok=True)
+        
         FW_MODEL = WhisperModel(
             "medium",
             device="cpu",
             compute_type="int8",
             cpu_threads=CPU_COUNT,
-            num_workers=1
+            num_workers=1,
+            download_root=cache_dir
         )
         logger.info("Modelo faster-whisper cargado.")
     return FW_MODEL
