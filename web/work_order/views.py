@@ -35,8 +35,12 @@ class OrdenListView(LoginRequiredMixin, ListView):
                         worklogs__collaborator=self.request.user
                     ).distinct()
                     
-                    # Combinar ambos querysets usando union para evitar problemas de unicidad
-                    queryset = assigned_orders.union(collaborator_orders)
+                    # Combinar ambos querysets usando Q objects para evitar problemas de unicidad
+                    from django.db.models import Q
+                    queryset = queryset.filter(
+                        Q(asignado_a=self.request.user) | 
+                        Q(worklogs__collaborator=self.request.user)
+                    ).distinct()
                 else:
                     queryset = assigned_orders
         

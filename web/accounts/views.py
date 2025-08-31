@@ -33,10 +33,98 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
+    from django.db.models import Count, Sum, Q
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    from work_order.models import WorkOrder
+    from worklog.models import WorkLog
+    
+    # Estadísticas básicas
     context = {
         'user': request.user,
         'user_count': CustomUser.objects.count() if request.user.can_manage_users() else None,
     }
+    
+    # Estadísticas de órdenes de trabajo
+    total_ordenes = WorkOrder.objects.count()
+    ordenes_abiertas = WorkOrder.objects.filter(estado='abierta').count()
+    ordenes_cerradas = WorkOrder.objects.filter(estado='cerrada').count()
+    
+    context.update({
+        'total_ordenes': total_ordenes,
+        'ordenes_abiertas': ordenes_abiertas,
+        'ordenes_cerradas': ordenes_cerradas,
+    })
+    
+    # Estadísticas de horas según el tipo de usuario
+    if request.user.user_type == 'admin':
+        # Para administradores: horas de todos los técnicos
+        # Obtener todos los worklogs y calcular horas en Python
+        worklogs = WorkLog.objects.select_related('technician').all()
+        total_horas = 0
+        horas_por_tecnico_dict = {}
+        
+        for worklog in worklogs:
+            if worklog.start and worklog.end:
+                horas = (worklog.end - worklog.start).total_seconds() / 3600
+                total_horas += horas
+                
+                # Acumular horas por técnico
+                username = worklog.technician.username
+                if username not in horas_por_tecnico_dict:
+                    horas_por_tecnico_dict[username] = 0
+                horas_por_tecnico_dict[username] += horas
+        
+        # Convertir a lista ordenada para el top 5
+        horas_por_tecnico = [
+            {'technician__username': username, 'total_horas': round(horas, 2)}
+            for username, horas in sorted(horas_por_tecnico_dict.items(), key=lambda x: x[1], reverse=True)[:5]
+        ]
+        
+        context.update({
+            'total_horas': round(total_horas, 2),
+            'horas_por_tecnico': horas_por_tecnico,
+            'es_admin': True
+        })
+    else:
+        # Para otros usuarios: solo sus propias horas
+        worklogs = WorkLog.objects.filter(technician=request.user).all()
+        total_horas = 0
+        
+        for worklog in worklogs:
+            if worklog.start and worklog.end:
+                horas = (worklog.end - worklog.start).total_seconds() / 3600
+                total_horas += horas
+        
+        context.update({
+            'total_horas': round(total_horas, 2),
+            'es_admin': False
+        })
+    
+    # Gráfico de órdenes mensuales (últimos 12 meses)
+    meses = []
+    ordenes_por_mes = []
+    
+    for i in range(12):
+        fecha = timezone.now() - timedelta(days=30*i)
+        mes = fecha.strftime('%B %Y')
+        count = WorkOrder.objects.filter(
+            fecha_creacion__year=fecha.year,
+            fecha_creacion__month=fecha.month
+        ).count()
+        
+        meses.append(mes)
+        ordenes_por_mes.append(count)
+    
+    # Invertir para mostrar del más reciente al más antiguo
+    meses.reverse()
+    ordenes_por_mes.reverse()
+    
+    context.update({
+        'meses': meses,
+        'ordenes_por_mes': ordenes_por_mes,
+    })
+    
     return render(request, 'dashboard.html', context)
 
 @login_required

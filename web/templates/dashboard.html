@@ -85,6 +85,95 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Estadísticas de Órdenes de Trabajo -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Órdenes Abiertas</h5>
+                        <p class="h4">{{ ordenes_abiertas }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-folder-open fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-info text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Órdenes Cerradas</h5>
+                        <p class="h4">{{ ordenes_cerradas }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-folder fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-primary text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Total Órdenes</h5>
+                        <p class="h4">{{ total_ordenes }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-tasks fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas de Horas -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>{% if es_admin %}Total Horas Técnicos{% else %}Mis Horas{% endif %}</h5>
+                        <p class="h4">{{ total_horas|floatformat:1 }}h</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if es_admin and horas_por_tecnico %}
+    <div class="col-md-6">
+        <div class="card bg-secondary text-white mb-4">
+            <div class="card-body">
+                <h5>Top 5 Técnicos por Horas</h5>
+                <div class="list-group list-group-flush">
+                    {% for tecnico in horas_por_tecnico %}
+                    <div class="list-group-item bg-transparent text-white border-0 d-flex justify-content-between">
+                        <span>{{ tecnico.technician__username }}</span>
+                        <span class="badge bg-light text-dark">{{ tecnico.total_horas|floatformat:1 }}h</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 {% if user.user_type in 'admin,supervisor,operador' %}
     <div class="col-md-6 col-lg-3">
         <div class="card bg-secondary text-white mb-4">
@@ -332,6 +421,20 @@
                     {% endif %}
                 </div>
                 
+                <!-- Gráfico de Órdenes Mensuales -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-chart-line"></i> Órdenes de Trabajo por Mes (Últimos 12 meses)</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="ordenesChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Información Adicional -->
                 <div class="mt-3 p-3 bg-light rounded">
                     <h6><i class="fas fa-lightbulb"></i> Consejos de Uso</h6>
@@ -353,5 +456,49 @@
     </div>
 </div>
 
+<!-- Script para el gráfico -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('ordenesChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ meses|safe }},
+            datasets: [{
+                label: 'Órdenes de Trabajo',
+                data: {{ ordenes_por_mes|safe }},
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: 'Evolución Mensual de Órdenes de Trabajo'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 
 {% endblock %}

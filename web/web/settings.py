@@ -175,6 +175,7 @@ CONTENT_SECURITY_POLICY = {
             "'self'",
             "cdn.jsdelivr.net",           # Bootstrap JS
             "cdnjs.cloudflare.com",       # Font Awesome
+            "cdn.jsdelivr.net",           # Chart.js
         ),
         'style-src': (
             "'self'",
