@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container-fluid mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Órdenes de Trabajo</h1>
+    <h1 class="h3 mb-0">Órdenes de Campo</h1>
     {% if user.user_type not in 'tecnico' %}
     <a class="btn btn-primary" href="{% url 'work_order:create' %}">
       <i class="fas fa-plus"></i> Nueva OT

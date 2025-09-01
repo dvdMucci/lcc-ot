@@ -1,17 +1,195 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-  <h1 class="h3 mb-3">{{ view.object|yesno:"Editar orden,Nueva orden" }}</h1>
-  <form method="post" novalidate>
-    {% csrf_token %}
-    {% if form.non_field_errors %}
-      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-    {% endif %}
-    {{ form.as_p }}
-    <div class="mt-3">
-      <button class="btn btn-primary" type="submit">Guardar</button>
-      <a class="btn btn-link" href="{% url 'work_order:list' %}">Cancelar</a>
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">
+            <i class="fas fa-file-alt"></i> 
+            {{ view.object|yesno:"Editar Orden de Campo,Nueva Orden de Campo" }}
+          </h3>
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="{{ form.numero.id_for_label }}" class="form-label">
+                    <i class="fas fa-hashtag"></i> Número de Orden
+                  </label>
+                  {{ form.numero }}
+                  <div class="form-text">Ej: OT-2025-001</div>
+                  {% if form.numero.errors %}
+                    <div class="text-danger">
+                      {% for error in form.numero.errors %}
+                        <small>{{ error }}</small>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="{{ form.cliente.id_for_label }}" class="form-label">
+                    <i class="fas fa-user"></i> Cliente
+                  </label>
+                  {{ form.cliente }}
+                  {% if form.cliente.errors %}
+                    <div class="text-danger">
+                      {% for error in form.cliente.errors %}
+                        <small>{{ error }}</small>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.titulo.id_for_label }}" class="form-label">
+                <i class="fas fa-heading"></i> Título
+              </label>
+              {{ form.titulo }}
+              {% if form.titulo.errors %}
+                <div class="text-danger">
+                  {% for error in form.titulo.errors %}
+                    <small>{{ error }}</small>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                <i class="fas fa-align-left"></i> Descripción
+              </label>
+              {{ form.descripcion }}
+              {% if form.descripcion.errors %}
+                <div class="text-danger">
+                  {% for error in form.descripcion.errors %}
+                    <small>{{ error }}</small>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="{{ form.prioridad.id_for_label }}" class="form-label">
+                    <i class="fas fa-exclamation-triangle"></i> Prioridad
+                  </label>
+                  {{ form.prioridad }}
+                  {% if form.prioridad.errors %}
+                    <div class="text-danger">
+                      {% for error in form.prioridad.errors %}
+                        <small>{{ error }}</small>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="{{ form.estado.id_for_label }}" class="form-label">
+                    <i class="fas fa-info-circle"></i> Estado
+                  </label>
+                  {{ form.estado }}
+                  {% if form.estado.errors %}
+                    <div class="text-danger">
+                      {% for error in form.estado.errors %}
+                        <small>{{ error }}</small>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="{{ form.asignado_a.id_for_label }}" class="form-label">
+                    <i class="fas fa-user-tie"></i> Asignado a
+                  </label>
+                  {{ form.asignado_a }}
+                  {% if form.asignado_a.errors %}
+                    <div class="text-danger">
+                      {% for error in form.asignado_a.errors %}
+                        <small>{{ error }}</small>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.fecha_limite.id_for_label }}" class="form-label">
+                <i class="fas fa-calendar-times"></i> Fecha Límite
+              </label>
+              {{ form.fecha_limite }}
+              <div class="form-text">Fecha y hora límite para completar la orden</div>
+              {% if form.fecha_limite.errors %}
+                <div class="text-danger">
+                  {% for error in form.fecha_limite.errors %}
+                    <small>{{ error }}</small>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'work_order:list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Cancelar
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Guardar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
-  </form>
+  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fecha límite por defecto (1 semana desde hoy)
+    const fechaLimiteField = document.getElementById('{{ form.fecha_limite.id_for_label }}');
+    if (fechaLimiteField && !fechaLimiteField.value) {
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nextWeekString = nextWeek.toISOString().slice(0, 16);
+        fechaLimiteField.value = nextWeekString;
+    }
+    
+    // Mejorar navegación entre campos
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach((input, index) => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                } else {
+                    // Si es el último campo, enviar el formulario
+                    document.querySelector('button[type="submit"]').click();
+                }
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -54,7 +54,7 @@ class WorkOrder(models.Model):
 
     class Meta:
         verbose_name = "Orden de Trabajo"
-        verbose_name_plural = "Órdenes de Trabajo"
+        verbose_name_plural = "Órdenes de Campo"
         ordering = ["-fecha_creacion"]
 
     def __str__(self):

@@ -267,7 +267,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Usuario {user.get_full_name()} ({user.username}) inició el bot")
             await update.message.reply_text(
                 f"Hola {user.get_full_name()} 👷‍♂️\n"
-                f"Usá /tareas para ver tus tareas, /nueva_tarea para crear una o /ver_OTs para ver tus Órdenes de Trabajo."
+                f"Usá /tareas para ver tus tareas, /nueva_tarea para crear una o /ver_OTs para ver tus Órdenes de Campo."
             )
         else:
             logger.warning(f"Intento de acceso no autorizado desde chat_id: {chat_id}")
@@ -329,7 +329,7 @@ async def ver_OTs(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🚫 No estás autorizado.")
             return
         
-        logger.info(f"Usuario {user.get_full_name()} ({user.username}) consultó sus órdenes de trabajo")
+        logger.info(f"Usuario {user.get_full_name()} ({user.username}) consultó sus órdenes de campo")
 
         from work_order.models import WorkOrder
 
@@ -350,7 +350,7 @@ async def ver_OTs(update: Update, context: ContextTypes.DEFAULT_TYPE):
             buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_orden:{o.id}")])
 
         buttons.append([InlineKeyboardButton("➕ Nueva Tarea", callback_data="nueva_tarea_bot")])
-        await update.message.reply_text("📋 Tus órdenes de trabajo:", reply_markup=InlineKeyboardMarkup(buttons))
+        await update.message.reply_text("📋 Tus órdenes de campo:", reply_markup=InlineKeyboardMarkup(buttons))
     except Exception as e:
         logger.error(f"/ver_OTs error: {e}")
         await update.message.reply_text("❌ Error interno del bot.")
@@ -477,7 +477,7 @@ async def volver_ordenes_callback(query, context):
             buttons.append([InlineKeyboardButton(texto, callback_data=f"ver_orden:{o.id}")])
 
         buttons.append([InlineKeyboardButton("➕ Nueva Tarea", callback_data="nueva_tarea_bot")])
-        await query.edit_message_text("📋 Tus órdenes de trabajo:", reply_markup=InlineKeyboardMarkup(buttons))
+        await query.edit_message_text("📋 Tus órdenes de campo:", reply_markup=InlineKeyboardMarkup(buttons))
     except Exception as e:
         logger.error(f"volver_ordenes_callback error: {e}")
         await query.edit_message_text("❌ Error interno del bot.")

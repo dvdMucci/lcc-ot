@@ -28,12 +28,12 @@ class WorkLogFilterForm(forms.Form):
 
 
 class WorkLogForm(forms.ModelForm):
-    # Campo personalizado para órdenes de trabajo activas
+    # Campo personalizado para órdenes de campo activas
     work_order = forms.ModelChoiceField(
         queryset=None,  # Se establecerá en __init__
         required=False,
-        empty_label="Seleccionar orden de trabajo (opcional)",
-        label="Orden de trabajo"
+        empty_label="Seleccionar orden de campo (opcional)",
+        label="Orden de campo"
     )
     
     class Meta:
@@ -118,12 +118,12 @@ class WorkLogForm(forms.ModelForm):
 
 class WorkLogEditForm(forms.ModelForm):
     """Formulario para editar tareas existentes"""
-    # Campo personalizado para órdenes de trabajo activas
+    # Campo personalizado para órdenes de campo activas
     work_order = forms.ModelChoiceField(
         queryset=None,  # Se establecerá en __init__
         required=False,
-        empty_label="Seleccionar orden de trabajo (opcional)",
-        label="Orden de trabajo"
+        empty_label="Seleccionar orden de campo (opcional)",
+        label="Orden de campo"
     )
     
     class Meta:

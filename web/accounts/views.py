@@ -45,7 +45,7 @@ def dashboard(request):
         'user_count': CustomUser.objects.count() if request.user.can_manage_users() else None,
     }
     
-    # Estadísticas de órdenes de trabajo
+    # Estadísticas de órdenes de campo
     total_ordenes = WorkOrder.objects.count()
     ordenes_abiertas = WorkOrder.objects.filter(estado='abierta').count()
     ordenes_cerradas = WorkOrder.objects.filter(estado='cerrada').count()
@@ -101,28 +101,148 @@ def dashboard(request):
             'es_admin': False
         })
     
-    # Gráfico de órdenes mensuales (últimos 12 meses)
+    # Gráfico de horas semanales del usuario actual (últimas 8 semanas)
+    semanas = []
+    horas_por_semana = []
+    
+    for i in range(8):
+        fecha_fin = timezone.now() - timedelta(weeks=i)
+        fecha_inicio = fecha_fin - timedelta(days=7)
+        
+        # Obtener horas de la semana del usuario actual
+        worklogs_semana = WorkLog.objects.filter(
+            technician=request.user,
+            start__gte=fecha_inicio,
+            start__lt=fecha_fin
+        )
+        
+        total_horas_semana = 0
+        for worklog in worklogs_semana:
+            if worklog.start and worklog.end:
+                horas = (worklog.end - worklog.start).total_seconds() / 3600
+                total_horas_semana += horas
+        
+        semana_label = f"Sem {fecha_fin.strftime('%d/%m')}"
+        semanas.append(semana_label)
+        horas_por_semana.append(round(total_horas_semana, 1))
+    
+    # Invertir para mostrar del más reciente al más antiguo
+    semanas.reverse()
+    horas_por_semana.reverse()
+    
+    # Gráfico de horas mensuales del usuario actual (últimos 12 meses)
     meses = []
-    ordenes_por_mes = []
+    horas_por_mes = []
     
     for i in range(12):
         fecha = timezone.now() - timedelta(days=30*i)
-        mes = fecha.strftime('%B %Y')
-        count = WorkOrder.objects.filter(
-            fecha_creacion__year=fecha.year,
-            fecha_creacion__month=fecha.month
-        ).count()
+        fecha_inicio = fecha.replace(day=1)
+        if i == 0:
+            fecha_fin = timezone.now()
+        else:
+            fecha_fin = fecha_inicio + timedelta(days=32)
+            fecha_fin = fecha_inicio.replace(day=1) - timedelta(days=1)
         
-        meses.append(mes)
-        ordenes_por_mes.append(count)
+        # Obtener horas del mes del usuario actual
+        worklogs_mes = WorkLog.objects.filter(
+            technician=request.user,
+            start__gte=fecha_inicio,
+            start__lte=fecha_fin
+        )
+        
+        total_horas_mes = 0
+        for worklog in worklogs_mes:
+            if worklog.start and worklog.end:
+                horas = (worklog.end - worklog.start).total_seconds() / 3600
+                total_horas_mes += horas
+        
+        mes_label = fecha.strftime('%b %Y')
+        meses.append(mes_label)
+        horas_por_mes.append(round(total_horas_mes, 1))
     
     # Invertir para mostrar del más reciente al más antiguo
     meses.reverse()
-    ordenes_por_mes.reverse()
+    horas_por_mes.reverse()
+    
+    # Gráfico de torta: distribución de tareas por tipo
+    # Obtener todas las tareas del usuario actual
+    worklogs_usuario = WorkLog.objects.filter(technician=request.user).select_related('work_order_ref')
+    
+    # Contar horas por tipo de tarea
+    horas_por_tipo = {}
+    horas_por_subtarea = {}
+    horas_por_estado = {}
+    
+    # Datos para tabla de resumen
+    resumen_tareas = []
+    
+    for worklog in worklogs_usuario:
+        if worklog.start and worklog.end:
+            horas = (worklog.end - worklog.start).total_seconds() / 3600
+            
+            # Tipo principal de tarea
+            tipo_principal = worklog.task_type
+            if tipo_principal not in horas_por_tipo:
+                horas_por_tipo[tipo_principal] = 0
+            horas_por_tipo[tipo_principal] += horas
+            
+            # Estado de la tarea
+            estado = worklog.status
+            if estado not in horas_por_estado:
+                horas_por_estado[estado] = 0
+            horas_por_estado[estado] += horas
+            
+            # Subtareas específicas con más detalle
+            if tipo_principal == 'Operaciones generales' and worklog.general_ops_subtype:
+                subtarea = f"Op. Gen: {worklog.general_ops_subtype}"
+            elif tipo_principal == 'Otros' and worklog.other_task_type:
+                subtarea = f"Otros: {worklog.other_task_type}"
+            elif tipo_principal == 'Campo' and worklog.field_city:
+                subtarea = f"Campo: {worklog.field_city}"
+            elif tipo_principal == 'Taller':
+                subtarea = f"Taller: {worklog.description[:30] if worklog.description else 'Sin descripción'}"
+            else:
+                subtarea = f"{tipo_principal}: {worklog.description[:30] if worklog.description else 'Sin descripción'}"
+            
+            if subtarea not in horas_por_subtarea:
+                horas_por_subtarea[subtarea] = 0
+            horas_por_subtarea[subtarea] += horas
+            
+            # Agregar a resumen para tabla
+            resumen_tareas.append({
+                'tipo': worklog.task_type,
+                'estado': worklog.status,
+                'descripcion': worklog.description,
+                'horas': round(horas, 1),
+                'fecha': worklog.start.date(),
+                'orden_trabajo': worklog.work_order_ref.numero if worklog.work_order_ref else worklog.work_order or 'N/A'
+            })
+    
+    # Preparar datos para el gráfico de torta
+    tipos_tarea = list(horas_por_tipo.keys())
+    horas_tipos = [round(horas, 1) for horas in horas_por_tipo.values()]
+    
+    subtareas = list(horas_por_subtarea.keys())
+    horas_subtareas = [round(horas, 1) for horas in horas_por_subtarea.values()]
+    
+    estados = list(horas_por_estado.keys())
+    horas_estados = [round(horas, 1) for horas in horas_por_estado.values()]
+    
+    # Ordenar resumen por fecha más reciente
+    resumen_tareas.sort(key=lambda x: x['fecha'], reverse=True)
     
     context.update({
+        'semanas': semanas,
+        'horas_por_semana': horas_por_semana,
         'meses': meses,
-        'ordenes_por_mes': ordenes_por_mes,
+        'horas_por_mes': horas_por_mes,
+        'tipos_tarea': tipos_tarea,
+        'horas_tipos': horas_tipos,
+        'subtareas': subtareas,
+        'horas_subtareas': horas_subtareas,
+        'estados': estados,
+        'horas_estados': horas_estados,
+        'resumen_tareas': resumen_tareas[:20],  # Últimas 20 tareas
     })
     
     return render(request, 'dashboard.html', context)

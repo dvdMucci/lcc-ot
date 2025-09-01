@@ -13,6 +13,8 @@
         <div class="form-section">
             <h2>Plataforma de Gestión</h2>
             
+
+            
             {% if form.errors %}
             <div class="error-message">
                 <p>Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.</p>
@@ -21,6 +23,7 @@
             
             <form method="post" class="login-form">
                 {% csrf_token %}
+
                 
                 <div class="form-group">
                     <label for="{{ form.username.id_for_label }}">Usuario</label>
@@ -208,6 +211,8 @@ body {
     font-size: 0.9rem;
 }
 
+
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .login-card {
@@ -283,6 +288,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loginBtn.addEventListener('mouseleave', function() {
         this.style.transform = 'translateY(0)';
     });
+    
+
 });
 </script>
 {% endblock %}
