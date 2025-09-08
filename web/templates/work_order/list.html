@@ -199,6 +199,10 @@
                   <span class="badge bg-secondary">Espera Repuestos</span>
                 {% elif o.estado == 'completada' %}
                   <span class="badge bg-success">Completada</span>
+                {% elif o.estado == 'a_facturar' %}
+                  <span class="badge bg-warning text-dark">A Facturar</span>
+                {% elif o.estado == 'facturada' %}
+                  <span class="badge bg-info text-dark">Facturada</span>
                 {% elif o.estado == 'cancelada' %}
                   <span class="badge bg-danger">Cancelada</span>
                 {% else %}

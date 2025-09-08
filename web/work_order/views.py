@@ -26,22 +26,18 @@ class OrdenListView(LoginRequiredMixin, ListView):
         if hasattr(self.request.user, 'user_type'):
             is_tecnico = self.request.user.user_type == 'tecnico'
             if is_tecnico:
-                # Obtener órdenes asignadas directamente al técnico
-                assigned_orders = queryset.filter(asignado_a=self.request.user)
+                # Usar Q objects para combinar las condiciones sin union
+                from django.db.models import Q
+                q_objects = Q(asignado_a=self.request.user)
                 
-                # Obtener órdenes donde el técnico aparece como colaborador en alguna tarea
+                # Agregar órdenes donde el técnico aparece como colaborador
                 if WorkLog:
-                    collaborator_orders = queryset.filter(
-                        worklogs__collaborator=self.request.user
-                    ).distinct()
-                    
-                    # Combinar ambos querysets usando union para evitar problemas de unicidad
-                    queryset = assigned_orders.union(collaborator_orders)
-                else:
-                    queryset = assigned_orders
+                    q_objects |= Q(worklogs__collaborator=self.request.user)
+                
+                queryset = queryset.filter(q_objects).distinct()
         
         # Aplicar filtros
-        form = WorkOrderFilterForm(self.request.GET or None)
+        form = WorkOrderFilterForm(self.request.GET or None, user=self.request.user)
         if form.is_valid():
             # Búsqueda general
             search = form.cleaned_data.get('search')
@@ -231,6 +227,11 @@ class OrdenCreateView(LoginRequiredMixin, NotTecnicoRequiredMixin, CreateView):
     template_name = "work_order/form.html"
     success_url = reverse_lazy("work_order:list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
         return super().form_valid(form)
@@ -240,6 +241,11 @@ class OrdenUpdateView(LoginRequiredMixin, NotTecnicoRequiredMixin, UpdateView):
     form_class = WorkOrderForm
     template_name = "work_order/form.html"
     success_url = reverse_lazy("work_order:list")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
 from rest_framework import viewsets, permissions
 from .serializers import WorkOrderSerializer

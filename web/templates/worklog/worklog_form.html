@@ -63,9 +63,7 @@
             <label for="id_task_type" class="form-label">Tipo de tarea</label>
             {{ form.task_type }}
             <div class="form-text">Selecciona el tipo de tarea para mostrar campos adicionales</div>
-            <button type="button" class="btn btn-sm btn-outline-info mt-2" onclick="testToggle()">
-                <i class="fas fa-bug"></i> Probar campos condicionales
-            </button>
+            
         </div>
 
         <div class="mb-3" id="other-type-container" style="display:none;">
@@ -170,10 +168,7 @@
             {% endif %}
         </div>
 
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save"></i> Guardar tarea
-        </button>
-                    <div class="d-flex justify-content-between">
+                   <div class="d-flex justify-content-between">
                         <a href="{% url 'worklog-list' %}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Cancelar
                         </a>

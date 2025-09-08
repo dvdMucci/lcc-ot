@@ -9,6 +9,21 @@ class WorkOrderForm(forms.ModelForm):
         model = WorkOrder
         fields = ["numero","cliente","titulo","descripcion","prioridad","estado","asignado_a","fecha_limite"]
         widgets = {"fecha_limite": forms.DateTimeInput(attrs={"type": "datetime-local"})}
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filtrar estados según tipo de usuario
+        if self.user and hasattr(self.user, 'user_type'):
+            is_tecnico = self.user.user_type == 'tecnico'
+            if is_tecnico:
+                # Los técnicos no pueden ver ni seleccionar A_FACTURAR y FACTURADA
+                restricted_choices = [
+                    choice for choice in self.fields['estado'].choices 
+                    if choice[0] not in ['a_facturar', 'facturada']
+                ]
+                self.fields['estado'].choices = restricted_choices
 
 class WorkOrderFilterForm(forms.Form):
     # Búsqueda general
@@ -72,6 +87,21 @@ class WorkOrderFilterForm(forms.Form):
         label="Estado",
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filtrar estados según tipo de usuario
+        if self.user and hasattr(self.user, 'user_type'):
+            is_tecnico = self.user.user_type == 'tecnico'
+            if is_tecnico:
+                # Los técnicos no pueden filtrar por A_FACTURAR y FACTURADA
+                restricted_choices = [
+                    choice for choice in self.fields['estado'].choices 
+                    if choice[0] not in ['a_facturar', 'facturada']
+                ]
+                self.fields['estado'].choices = restricted_choices
     
     asignado_a = forms.ModelChoiceField(
         queryset=User.objects.filter(user_type='tecnico').order_by('first_name', 'last_name'),

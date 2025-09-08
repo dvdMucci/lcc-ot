@@ -17,6 +17,8 @@ class WorkOrder(models.Model):
         EN_ESPERA_REPUESTOS = "en_espera_repuestos", "En Espera de Repuestos"
         COMPLETADA = "completada", "Completada"
         CANCELADA = "cancelada", "Cancelada"
+        A_FACTURAR = "a_facturar", "A Facturar"
+        FACTURADA = "facturada", "Facturada"
         CERRADA = "cerrada", "Cerrada"
 
     numero = models.CharField(max_length=30, unique=True, help_text="Identificador de la OT (p.ej. OT-2025-001)")
