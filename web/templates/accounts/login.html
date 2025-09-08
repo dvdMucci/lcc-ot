@@ -1,55 +1,295 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Iniciar Sesión{% endblock %}
+{% block title %}Iniciar Sesión - LCC{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white text-center">
-                <h4><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</h4>
+<div class="login-container">
+    <div class="login-card">
+        <div class="logo-section">
+            <img src="{% static 'web/images/logo.png' %}" alt="LCC Logo" class="logo-image">
+        </div>
+        
+        <div class="form-section">
+            <h2>Plataforma de Gestión</h2>
+            
+
+            
+            {% if form.errors %}
+            <div class="error-message">
+                <p>Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.</p>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.username.id_for_label }}" class="form-label">Usuario</label>
-                        {{ form.username }}
-                        {% if form.username.errors %}
-                            <div class="text-danger">{{ form.username.errors }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
-                        {{ form.password }}
-                        {% if form.password.errors %}
-                            <div class="text-danger">{{ form.password.errors }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.otp_token.id_for_label }}" class="form-label">Código 2FA</label>
-                        {{ form.otp_token }}
-                        <small class="form-text text-muted">Solo si tienes 2FA habilitado</small>
-                        {% if form.otp_token.errors %}
-                            <div class="text-danger">{{ form.otp_token.errors }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {{ form.non_field_errors }}
-                        </div>
-                    {% endif %}
-                    
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-                    </button>
-                </form>
-            </div>
+            {% endif %}
+            
+            <form method="post" class="login-form">
+                {% csrf_token %}
+
+                
+                <div class="form-group">
+                    <label for="{{ form.username.id_for_label }}">Usuario</label>
+                    <input type="text" 
+                           name="{{ form.username.name }}" 
+                           id="{{ form.username.id_for_label }}"
+                           class="form-input"
+                           placeholder="Ingresa tu usuario"
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.password.id_for_label }}">Contraseña</label>
+                    <input type="password" 
+                           name="{{ form.password.name }}" 
+                           id="{{ form.password.id_for_label }}"
+                           class="form-input"
+                           placeholder="Ingresa tu contraseña"
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="otp_token">Código de Verificación (2FA) <small class="optional-text">(opcional)</small></label>
+                    <input type="text" 
+                           name="otp_token" 
+                           id="otp_token"
+                           class="form-input"
+                           placeholder="Ingresa el código de 6 dígitos si tienes 2FA habilitado"
+                           maxlength="6"
+                           pattern="[0-9]{6}">
+                    <small class="help-text">Si tienes autenticación de dos factores habilitada, ingresa el código de tu aplicación</small>
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <span>INGRESAR</span>
+                </button>
+            </form>
         </div>
     </div>
 </div>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: white;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 1000px;
+    margin: 20px;
+}
+
+.login-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    min-height: 600px;
+    border: 1px solid #e1e5e9;
+}
+
+.logo-section {
+    flex: 1;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 40px;
+}
+
+.logo-image {
+    max-width: 50%;
+    max-height: 50%;
+    object-fit: contain;
+}
+
+.form-section {
+    flex: 1;
+    padding: 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: #f8f9fa;
+}
+
+.form-section h2 {
+    color: #333;
+    margin-bottom: 30px;
+    text-align: center;
+    font-size: 1.8rem;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #555;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e1e5e9;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.help-text {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.optional-text {
+    color: #888;
+    font-weight: normal;
+    font-size: 0.8rem;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 15px;
+    background: #bf122e;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+.login-btn:hover {
+    background: #a01026;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(191, 18, 46, 0.3);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+.error-message {
+    background: #fee;
+    border: 1px solid #fcc;
+    color: #c33;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.error-message p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .login-card {
+        flex-direction: column;
+        min-height: auto;
+    }
+    
+    .logo-section {
+        padding: 40px 20px;
+    }
+    
+    .form-section {
+        padding: 40px 30px;
+    }
+    
+    .logo-image {
+        max-width: 100px;
+        max-height: 75px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        margin: 10px;
+    }
+    
+    .form-section {
+        padding: 30px 20px;
+    }
+    
+            .form-section h2 {
+            font-size: 1.5rem;
+        }
+        
+        .logo-image {
+            max-width: 75px;
+            max-height: 50px;
+        }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus en el primer campo
+    document.querySelector('.form-input').focus();
+    
+    // Validación básica del formulario
+    const form = document.querySelector('.login-form');
+    const inputs = form.querySelectorAll('.form-input');
+    
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value.trim() === '') {
+                this.style.borderColor = '#e74c3c';
+            } else {
+                this.style.borderColor = '#e1e5e9';
+            }
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                this.style.borderColor = '#e1e5e9';
+            }
+        });
+    });
+    
+    // Animación del botón
+    const loginBtn = document.querySelector('.login-btn');
+    loginBtn.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-2px)';
+    });
+    
+    loginBtn.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+    });
+    
+
+});
+</script>
 {% endblock %}

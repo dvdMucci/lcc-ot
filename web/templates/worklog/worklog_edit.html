@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title mb-0">
@@ -24,9 +24,10 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.start.id_for_label }}" class="form-label">
-                                        <i class="fas fa-clock"></i> Inicio
+                                        <i class="fas fa-play-circle"></i> Inicio
                                     </label>
                                     {{ form.start }}
+                                    <div class="form-text">Fecha y hora de inicio de la tarea</div>
                                     {% if form.start.errors %}
                                         <div class="text-danger">
                                             {% for error in form.start.errors %}
@@ -40,9 +41,10 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.end.id_for_label }}" class="form-label">
-                                        <i class="fas fa-clock"></i> Finalización
+                                        <i class="fas fa-stop-circle"></i> Finalización
                                     </label>
                                     {{ form.end }}
+                                    <div class="form-text">Fecha y hora de finalización de la tarea</div>
                                     {% if form.end.errors %}
                                         <div class="text-danger">
                                             {% for error in form.end.errors %}
@@ -53,6 +55,20 @@
                                 </div>
                             </div>
                         </div>
+                        
+                                <div class="mb-3">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Duración de la tarea:</strong> <span id="duration-display">--</span>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <div class="alert alert-warning" id="debug-info">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Estado de campos condicionales:</strong> <span id="debug-status">Esperando selección...</span>
+            </div>
+        </div>
 
                         <div class="row">
                             <div class="col-md-6">
@@ -61,6 +77,10 @@
                                         <i class="fas fa-tasks"></i> Tipo de Tarea
                                     </label>
                                     {{ form.task_type }}
+                                    <div class="form-text">Selecciona el tipo de tarea para mostrar campos adicionales</div>
+                                    <button type="button" class="btn btn-sm btn-outline-info mt-2" onclick="testToggleEdit()">
+                                        <i class="fas fa-bug"></i> Probar campos condicionales
+                                    </button>
                                     {% if form.task_type.errors %}
                                         <div class="text-danger">
                                             {% for error in form.task_type.errors %}
@@ -88,7 +108,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-3" id="other_task_type_field" style="display: none;">
+                        <div class="mb-3" id="other-type-container" style="display: none;">
                             <label for="{{ form.other_task_type.id_for_label }}" class="form-label">
                                 <i class="fas fa-edit"></i> {{ form.other_task_type.label }}
                             </label>
@@ -102,19 +122,19 @@
                             {% endif %}
                         </div>
 
-                        <div class="mb-3" id="general_ops_subtype_field" style="display: none;">
+                        <div class="mb-3" id="general-ops-subtype-container" style="display: none;">
                             <label for="{{ form.general_ops_subtype.id_for_label }}" class="form-label">
                                 <i class="fas fa-list"></i> Subtipo (Operaciones generales)
                             </label>
                             {{ form.general_ops_subtype }}
                         </div>
 
-                        <div class="form-check mb-3" id="warranty_field" style="display: none;">
+                        <div class="form-check mb-3" id="warranty-container" style="display: none;">
                             {{ form.warranty }}
                             <label class="form-check-label" for="{{ form.warranty.id_for_label }}">¿Es garantía?</label>
                         </div>
 
-                        <div class="row" id="campo_extra_fields" style="display: none;">
+                        <div class="row" id="campo-extra-container" style="display: none;">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.field_city.id_for_label }}" class="form-label">Ciudad</label>
@@ -199,6 +219,93 @@
     </div>
 </div>
 
+<style>
+/* Estilos personalizados para el formulario de edición */
+.form-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.form-label i {
+    margin-right: 0.5rem;
+    color: #bf122e;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 2px solid #e1e5e9;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #bf122e;
+    box-shadow: 0 0 0 0.2rem rgba(191, 18, 46, 0.25);
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.alert-info {
+    background-color: #e3f2fd;
+    border-color: #90caf9;
+    color: #1565c0;
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card {
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #bf122e, #a01026);
+    color: white;
+    border-radius: 12px 12px 0 0 !important;
+    border: none;
+}
+
+.card-header h3 {
+    color: white;
+    margin: 0;
+}
+
+#duration-display {
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .col-md-6, .col-md-4 {
+        margin-bottom: 1rem;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const taskTypeField = document.getElementById('{{ form.task_type.id_for_label }}');
@@ -220,20 +327,93 @@ document.addEventListener('DOMContentLoaded', function() {
         endField.style.cursor = 'not-allowed';
     }
     
+    // Función para calcular duración
+    function calculateDuration() {
+        const durationDisplay = document.getElementById('duration-display');
+        
+        if (startField && endField && startField.value && endField.value) {
+            const start = new Date(startField.value);
+            const end = new Date(endField.value);
+            
+            if (end > start) {
+                const diffMs = end - start;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                durationDisplay.textContent = `${diffHours}h ${diffMinutes}m`;
+                durationDisplay.className = "text-success fw-bold";
+            } else {
+                durationDisplay.textContent = "Fecha de fin debe ser posterior al inicio";
+                durationDisplay.className = "text-danger fw-bold";
+            }
+        } else {
+            durationDisplay.textContent = "--";
+            durationDisplay.className = "";
+        }
+    }
+    
+    // Calcular duración inicial
+    calculateDuration();
+    
     function toggleOtherTaskType() {
-        const generalOpsField = document.getElementById('general_ops_subtype_field');
-        const warrantyField = document.getElementById('warranty_field');
-        const campoFields = document.getElementById('campo_extra_fields');
+        const generalOpsField = document.getElementById('general-ops-subtype-container');
+        const warrantyField = document.getElementById('warranty-container');
+        const campoFields = document.getElementById('campo-extra-container');
+
+        console.log("=== toggleOtherTaskType ejecutado ===");
+        console.log("Tipo seleccionado:", taskTypeField.value);
+        console.log("Contenedores encontrados:", {
+            otros: !!otherTaskTypeField,
+            subtipo: !!generalOpsField,
+            garantia: !!warrantyField,
+            campo: !!campoFields
+        });
 
         otherTaskTypeField.style.display = (taskTypeField.value === 'Otros') ? 'block' : 'none';
         generalOpsField.style.display = (taskTypeField.value === 'Operaciones generales') ? 'block' : 'none';
         warrantyField.style.display = (taskTypeField.value === 'Taller' || taskTypeField.value === 'Campo') ? 'block' : 'none';
         campoFields.style.display = (taskTypeField.value === 'Campo') ? 'block' : 'none';
+        
+        console.log("=== Fin toggleOtherTaskType ===");
+        
+        // Actualizar estado visible
+        updateDebugStatusEdit();
+    }
+    
+    function updateDebugStatusEdit() {
+        const debugStatus = document.getElementById('debug-status');
+        const tipo = taskTypeField.value;
+        
+        if (debugStatus) {
+            let status = `Tipo seleccionado: ${tipo || 'Ninguno'}`;
+            
+            if (tipo === 'Otros') {
+                status += ' → Campo "Especificar otro tipo" visible';
+            } else if (tipo === 'Operaciones generales') {
+                status += ' → Campo "Subtipo" visible';
+            } else if (tipo === 'Taller' || tipo === 'Campo') {
+                status += ' → Campo "Garantía" visible';
+                if (tipo === 'Campo') {
+                    status += ' + Campos "Ciudad" y "Kilómetros" visibles';
+                }
+            } else if (tipo) {
+                status += ' → Solo campos básicos visibles';
+            }
+            
+            debugStatus.textContent = status;
+        }
     }
     
     taskTypeField.addEventListener('change', toggleOtherTaskType);
     toggleOtherTaskType(); // Ejecutar al cargar la página
 });
+
+function testToggleEdit() {
+    console.log("=== Función de prueba de edición ejecutada ===");
+    const taskTypeField = document.getElementById('{{ form.task_type.id_for_label }}');
+    console.log("Valor actual del select:", taskTypeField ? taskTypeField.value : "No encontrado");
+    toggleOtherTaskType();
+}
 
 function copyToClipboard(text) {
     // Crear un elemento temporal para copiar el texto

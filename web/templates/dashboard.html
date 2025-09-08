@@ -3,355 +3,535 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
-        <p class="lead">Bienvenido, {{ user.get_full_name|default:user.username }}</p>
+<div class="dashboard-container">
+    <!-- Header del Dashboard -->
+    <div class="dashboard-header">
+        <div class="welcome-section">
+            <h1 class="dashboard-title">
+                <i class="fas fa-tachometer-alt"></i>
+                Panel de Control
+            </h1>
+            <p class="welcome-text">Bienvenido, {{ user.get_full_name|default:user.username }}</p>
+        </div>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-md-6 col-lg-3">
-        <div class="card bg-primary text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>Tipo de Usuario</h5>
-                        <p class="h4">{{ user.get_user_type_display }}</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-user-tag fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-   <div class="col-md-6 col-lg-3">
-        <div class="card text-white mb-4 
-            {% if user.is_2fa_enabled %}
-                bg-success {# Verde si 2FA está activo #}
-            {% else %}
-                bg-danger {# Rojo si 2FA está inactivo #}
-            {% endif %}
-        ">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>2FA Estado</h5>
-                        <p class="h4">{{ user.is_2fa_enabled|yesno:"Activo,Inactivo" }}</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-shield-alt fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    {% if user.telegram_chat_id %}
-    <div class="col-md-6 col-lg-3">
-        <div class="card bg-info text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>Telegram</h5>
-                        <p class="h4">Configurado</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fab fa-telegram fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    
+    <!-- Tarjetas de Estado del Usuario -->
     {% if user_count %}
-    <div class="col-md-6 col-lg-3">
-        <div class="card bg-warning text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>Total Usuarios</h5>
-                        <p class="h4">{{ user_count }}</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-users fa-2x"></i>
-                    </div>
-                </div>
+    <div class="stats-grid">
+        <div class="stat-card users-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
             </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-{% if user.user_type in 'admin,supervisor,operador' %}
-    <div class="col-md-6 col-lg-3">
-        <div class="card bg-secondary text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>Total Clientes</h5>
-                        <p class="h4">{{ client_count }}</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-address-book fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    {% if user.user_type in 'admin,supervisor,tecnico' %}
-    <div class="col-md-6 col-lg-3">
-        <div class="card bg-dark text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>Horas Técnicos</h5>
-                        <p class="h4">Ver / Cargar</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="card-footer d-flex align-items-center justify-content-between">
-                <a class="small text-white stretched-link" href="{% url 'worklog-list' %}">Ir a registro</a>
-                <div class="small text-white"><i class="fas fa-arrow-right"></i></div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    
-    {% if user.user_type in 'admin,supervisor,operador,tecnico' %}
-    <div class="col-md-6 col-lg-3">
-        <div class="card bg-info text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5>Órdenes de Trabajo</h5>
-                        <p class="h4">Ver / Gestionar</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-tasks fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="card-footer d-flex align-items-center justify-content-between">
-                <a class="small text-white stretched-link" href="{% url 'work_order:list' %}">Ver órdenes</a>
-                <div class="small text-white"><i class="fas fa-arrow-right"></i></div>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ user_count }}</h3>
+                <p class="stat-label">Total Usuarios</p>
             </div>
         </div>
     </div>
     {% endif %}
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-info-circle"></i> Información del Sistema</h5>
+    <!-- Estadísticas de Órdenes -->
+    <div class="section-title">
+        <h2><i class="fas fa-tasks"></i> Estadísticas de Órdenes de Campo</h2>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card orders-open">
+            <div class="stat-icon">
+                <i class="fas fa-folder-open"></i>
             </div>
-            <div class="card-body">
-                <p class="lead">Bienvenido al Sistema de Gestión Integral de LCC Junín</p>
-                
-                <div class="row">
-                    <!-- Funcionalidades Básicas para Todos -->
-                    <div class="col-md-6">
-                        <h6 class="text-primary"><i class="fas fa-user-cog"></i> Funcionalidades Básicas</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Gestión de perfil de usuario</li>
-                            <li><i class="fas fa-check text-success"></i> Configuración de 2FA con Google Authenticator</li>
-                            <li><i class="fas fa-check text-success"></i> Integración con Telegram (Chat ID)</li>
-                            <li><i class="fas fa-check text-success"></i> Dashboard personalizado</li>
-                        </ul>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ ordenes_abiertas }}</h3>
+                <p class="stat-label">Órdenes de Campo Abiertas</p>
+            </div>
+        </div>
+
+        <div class="stat-card orders-closed">
+            <div class="stat-icon">
+                <i class="fas fa-folder"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ ordenes_cerradas }}</h3>
+                <p class="stat-label">Órdenes de Campo Cerradas</p>
+            </div>
+        </div>
+
+        <div class="stat-card orders-total">
+            <div class="stat-icon">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ total_ordenes }}</h3>
+                <p class="stat-label">Total Órdenes de Campo</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas de Horas -->
+    <div class="section-title">
+        <h2><i class="fas fa-clock"></i> Estadísticas de Horas</h2>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card hours-card">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ total_horas|floatformat:1 }}h</h3>
+                <p class="stat-label">{% if es_admin %}Total Horas Técnicos{% else %}Mis Horas{% endif %}</p>
+            </div>
+        </div>
+
+        {% if es_admin and horas_por_tecnico %}
+        <div class="stat-card technicians-card">
+            <div class="stat-icon">
+                <i class="fas fa-user-cog"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">Top 5</h3>
+                <p class="stat-label">Técnicos por Horas</p>
+                <div class="technicians-list">
+                    {% for tecnico in horas_por_tecnico %}
+                    <div class="technician-item">
+                        <span class="technician-name">{{ tecnico.technician__username }}</span>
+                        <span class="technician-hours">{{ tecnico.total_horas|floatformat:1 }}h</span>
                     </div>
-                    
-                    <!-- Funcionalidades de Seguridad -->
-                    <div class="col-md-6">
-                        <h6 class="text-success"><i class="fas fa-shield-alt"></i> Seguridad y Autenticación</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Autenticación de doble factor (2FA)</li>
-                            <li><i class="fas fa-check text-success"></i> Contraseñas seguras</li>
-                            <li><i class="fas fa-check text-success"></i> Sesiones controladas</li>
-                            <li><i class="fas fa-check text-success"></i> Auditoría de cambios</li>
-                        </ul>
-                    </div>
+                    {% endfor %}
                 </div>
-                
-                <hr>
-                
-                <!-- Funcionalidades por Perfil -->
-                {% if user.user_type == 'admin' %}
-                <div class="alert alert-info">
-                    <h6><i class="fas fa-crown"></i> Perfil: Administrador del Sistema</h6>
-                    <p class="mb-2">Tienes acceso completo a todas las funcionalidades del sistema.</p>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-danger"><i class="fas fa-users-cog"></i> Gestión de Usuarios</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Crear, editar y eliminar usuarios</li>
-                            <li><i class="fas fa-check text-success"></i> Asignar roles y permisos</li>
-                            <li><i class="fas fa-check text-success"></i> Gestionar grupos de usuarios</li>
-                            <li><i class="fas fa-check text-success"></i> Monitorear actividad del sistema</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h6 class="text-warning"><i class="fas fa-database"></i> Gestión del Sistema</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Configuración del sistema</li>
-                            <li><i class="fas fa-check text-success"></i> Respaldo y restauración</li>
-                            <li><i class="fas fa-check text-success"></i> Logs del sistema</li>
-                            <li><i class="fas fa-check text-success"></i> Mantenimiento</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                {% elif user.user_type == 'supervisor' %}
-                <div class="alert alert-warning">
-                    <h6><i class="fas fa-user-tie"></i> Perfil: Supervisor</h6>
-                    <p class="mb-2">Puedes gestionar usuarios, clientes, órdenes de trabajo y supervisar el trabajo técnico.</p>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-danger"><i class="fas fa-users-cog"></i> Gestión de Usuarios</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Crear y editar usuarios técnicos</li>
-                            <li><i class="fas fa-check text-success"></i> Asignar roles y permisos</li>
-                            <li><i class="fas fa-check text-success"></i> Supervisar actividad de usuarios</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h6 class="text-info"><i class="fas fa-tasks"></i> Supervisión de Trabajo</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Gestionar órdenes de trabajo</li>
-                            <li><i class="fas fa-check text-success"></i> Supervisar horas técnicas</li>
-                            <li><i class="fas fa-check text-success"></i> Asignar tareas a técnicos</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                {% elif user.user_type == 'tecnico' %}
-                <div class="alert alert-success">
-                    <h6><i class="fas fa-tools"></i> Perfil: Técnico</h6>
-                    <p class="mb-2">Puedes gestionar tus tareas, registrar horas y ver órdenes de trabajo asignadas.</p>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-primary"><i class="fas fa-clock"></i> Gestión de Tareas</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Registrar horas de trabajo</li>
-                            <li><i class="fas fa-check text-success"></i> Crear y editar tareas</li>
-                            <li><i class="fas fa-check text-success"></i> Asociar tareas a órdenes de trabajo</li>
-                            <li><i class="fas fa-check text-success"></i> Colaborar con otros técnicos</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h6 class="text-info"><i class="fas fa-tasks"></i> Órdenes de Trabajo</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Ver órdenes asignadas</li>
-                            <li><i class="fas fa-check text-success"></i> Ver órdenes donde colaboras</li>
-                            <li><i class="fas fa-check text-success"></i> Actualizar estados de tareas</li>
-                            <li><i class="fas fa-check text-success"></i> Crear tareas asociadas</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                {% elif user.user_type == 'operador' %}
-                <div class="alert alert-primary">
-                    <h6><i class="fas fa-user-edit"></i> Perfil: Operador</h6>
-                    <p class="mb-2">Puedes gestionar clientes y órdenes de trabajo del sistema.</p>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-info"><i class="fas fa-address-book"></i> Gestión de Clientes</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Crear y editar clientes</li>
-                            <li><i class="fas fa-check text-success"></i> Mantener base de datos de clientes</li>
-                            <li><i class="fas fa-check text-success"></i> Gestionar información de contacto</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h6 class="text-warning"><i class="fas fa-tasks"></i> Órdenes de Trabajo</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Crear nuevas órdenes</li>
-                            <li><i class="fas fa-check text-success"></i> Editar órdenes existentes</li>
-                            <li><i class="fas fa-check text-success"></i> Asignar técnicos</li>
-                            <li><i class="fas fa-check text-success"></i> Gestionar prioridades</li>
-                        </ul>
-                    </div>
-                </div>
-                {% endif %}
-                
-                <hr>
-                
-                <!-- Funcionalidades Específicas por Perfil -->
-                <div class="row">
-                    {% if user.user_type in 'admin,supervisor,operador' %}
-                    <div class="col-md-6">
-                        <h6 class="text-info"><i class="fas fa-address-book"></i> Gestión de Clientes</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Base de datos de clientes</li>
-                            <li><i class="fas fa-check text-success"></i> Información de contacto</li>
-                            <li><i class="fas fa-check text-success"></i> Historial de servicios</li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                    
-                    {% if user.user_type in 'admin,supervisor,operador,tecnico' %}
-                    <div class="col-md-6">
-                        <h6 class="text-warning"><i class="fas fa-tasks"></i> Órdenes de Trabajo</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Creación y gestión de OT</li>
-                            <li><i class="fas fa-check text-success"></i> Asignación de técnicos</li>
-                            <li><i class="fas fa-check text-success"></i> Control de prioridades</li>
-                            <li><i class="fas fa-check text-success"></i> Seguimiento de estados</li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                    
-                    {% if user.user_type in 'admin,supervisor,tecnico' %}
-                    <div class="col-md-6">
-                        <h6 class="text-primary"><i class="fas fa-clock"></i> Horas Técnicas</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Registro de horas trabajadas</li>
-                            <li><i class="fas fa-check text-success"></i> Tipos de tareas (Taller, Campo, etc.)</li>
-                            <li><i class="fas fa-check text-success"></i> Colaboración entre técnicos</li>
-                            <li><i class="fas fa-check text-success"></i> Exportación de datos</li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <!-- Información Adicional -->
-                <div class="mt-3 p-3 bg-light rounded">
-                    <h6><i class="fas fa-lightbulb"></i> Consejos de Uso</h6>
-                    <ul class="mb-0">
-                        <li>Utiliza el menú de navegación superior para acceder rápidamente a las funcionalidades</li>
-                        <li>Las tarjetas del dashboard te permiten acceder directamente a las secciones principales</li>
-                        <li>Mantén actualizada tu información de perfil y configuración de 2FA</li>
-                        {% if user.user_type in 'admin,supervisor' %}
-                        <li>Como supervisor, puedes gestionar usuarios y supervisar el trabajo técnico</li>
-                        {% endif %}
-                        {% if user.user_type == 'tecnico' %}
-                        <li>Registra tus horas de trabajo regularmente para mantener un control preciso</li>
-                        <li>Asocia tus tareas a las órdenes de trabajo correspondientes</li>
-                        {% endif %}
-                    </ul>
-                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+
+
+
+    
+    <!-- Tabla de Resumen de Tareas -->
+    <div class="section-title">
+        <h2><i class="fas fa-table"></i> Resumen de Mis Últimas Tareas</h2>
+    </div>
+    
+    <div class="table-container">
+        <div class="table-card">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Descripción</th>
+                            <th>Horas</th>
+                            <th>Fecha</th>
+                            <th>Orden de Trabajo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in resumen_tareas %}
+                        <tr>
+                            <td>
+                                <span class="badge task-type-badge task-{{ tarea.tipo|lower|cut:" " }}">
+                                    {{ tarea.tipo }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge status-badge status-{{ tarea.estado|cut:"_" }}">
+                                    {{ tarea.estado|title }}
+                                </span>
+                            </td>
+                            <td>{{ tarea.descripcion|truncatechars:50 }}</td>
+                            <td><strong>{{ tarea.horas }}h</strong></td>
+                            <td>{{ tarea.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ tarea.orden_trabajo }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">
+                                <i class="fas fa-info-circle"></i> No hay tareas registradas aún
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.dashboard-header {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.dashboard-title i {
+    color: #667eea;
+    font-size: 2rem;
+}
+
+.welcome-text {
+    font-size: 1.2rem;
+    color: #6c757d;
+    margin: 0;
+}
+
+.section-title {
+    margin: 40px 0 20px 0;
+}
+
+.section-title h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.section-title i {
+    color: #667eea;
+    font-size: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.user-type-card {
+    border-left-color: #667eea;
+}
+
+.stat-card.security-active {
+    border-left-color: #28a745;
+}
+
+.stat-card.security-inactive {
+    border-left-color: #dc3545;
+}
+
+.stat-card.telegram-card {
+    border-left-color: #17a2b8;
+}
+
+.stat-card.users-card {
+    border-left-color: #ffc107;
+}
+
+.stat-card.orders-open {
+    border-left-color: #28a745;
+}
+
+.stat-card.orders-closed {
+    border-left-color: #17a2b8;
+}
+
+.stat-card.orders-total {
+    border-left-color: #667eea;
+}
+
+.stat-card.hours-card {
+    border-left-color: #6f42c1;
+}
+
+.stat-card.technicians-card {
+    border-left-color: #fd7e14;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-card.user-type-card .stat-icon {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.stat-card.security-active .stat-icon {
+    background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.stat-card.security-inactive .stat-icon {
+    background: linear-gradient(135deg, #dc3545, #fd7e14);
+}
+
+.stat-card.telegram-card .stat-icon {
+    background: linear-gradient(135deg, #17a2b8, #6f42c1);
+}
+
+.stat-card.users-card .stat-icon {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+}
+
+.stat-card.orders-open .stat-icon {
+    background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.stat-card.orders-closed .stat-icon {
+    background: linear-gradient(135deg, #17a2b8, #6f42c1);
+}
+
+.stat-card.orders-total .stat-icon {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.stat-card.hours-card .stat-icon {
+    background: linear-gradient(135deg, #6f42c1, #e83e8c);
+}
+
+.stat-card.technicians-card .stat-icon {
+    background: linear-gradient(135deg, #fd7e14, #ffc107);
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0 0 5px 0;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin: 0;
+    font-weight: 500;
+}
+
+.technicians-list {
+    margin-top: 15px;
+}
+
+.technician-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.technician-item:last-child {
+    border-bottom: none;
+}
+
+.technician-name {
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.technician-hours {
+    background: #e9ecef;
+    color: #495057;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+
+
+
+    
+    .table-container {
+        margin-bottom: 30px;
+    }
+    
+    .table-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+    
+    .table-responsive {
+        padding: 25px;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table th {
+        background: #f8f9fa;
+        border: none;
+        color: #2c3e50;
+        font-weight: 600;
+        padding: 15px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .table td {
+        padding: 12px;
+        vertical-align: middle;
+        border-color: #e9ecef;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Badges para tipos de tarea */
+    .task-type-badge {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+    
+    .task-taller {
+        background: #667eea;
+        color: white;
+    }
+    
+    .task-campo {
+        background: #28a745;
+        color: white;
+    }
+    
+    .task-diligencia {
+        background: #ffc107;
+        color: #2c3e50;
+    }
+    
+    .task-operaciones-generales {
+        background: #17a2b8;
+        color: white;
+    }
+    
+    .task-otros {
+        background: #6f42c1;
+        color: white;
+    }
+    
+    /* Badges para estados */
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+    
+    .status-abierta {
+        background: #28a745;
+        color: white;
+    }
+    
+    .status-pendiente {
+        background: #ffc107;
+        color: #2c3e50;
+    }
+    
+    .status-en-proceso {
+        background: #17a2b8;
+        color: white;
+    }
+    
+    .status-en-espera-repuestos {
+        background: #fd7e14;
+        color: white;
+    }
+    
+    .status-completada {
+        background: #28a745;
+        color: white;
+    }
+    
+    .status-cancelada {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .status-cerrada {
+        background: #6c757d;
+        color: white;
+    }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 15px;
+    }
+    
+    .dashboard-title {
+        font-size: 2rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-header {
+        padding: 20px;
+    }
+    
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+}
+</style>
+
 
 
 {% endblock %}
