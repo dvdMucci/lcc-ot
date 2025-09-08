@@ -1,7 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4">
-    <h2>Registrar tarea</h2>
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-plus-circle"></i> Registrar Nueva Tarea
+                    </h2>
+                </div>
+                <div class="card-body">
     <form method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -12,19 +20,52 @@
         </div>
         {% endif %}
 
-        <div class="mb-3">
-            <label for="id_start" class="form-label">Fecha y hora de inicio</label>
-            {{ form.start }}
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="id_start" class="form-label">
+                        <i class="fas fa-play-circle"></i> Fecha y hora de inicio
+                    </label>
+                    {{ form.start }}
+                    <div class="form-text">Selecciona cuándo comenzó la tarea</div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="id_end" class="form-label">
+                        <i class="fas fa-stop-circle"></i> Fecha y hora de finalización
+                    </label>
+                    {{ form.end }}
+                    <div class="form-text">Selecciona cuándo terminó la tarea</div>
+                </div>
+            </div>
         </div>
-
+        
         <div class="mb-3">
-            <label for="id_end" class="form-label">Fecha y hora de finalización</label>
-            {{ form.end }}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Duración calculada:</strong> <span id="duration-display">--</span>
+                <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="quick-end-time" style="display: none;">
+                    <i class="fas fa-clock"></i> Establecer fin automático
+                </button>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <div class="alert alert-warning" id="debug-info">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Estado de campos condicionales:</strong> <span id="debug-status">Esperando selección...</span>
+            </div>
         </div>
 
         <div class="mb-3">
             <label for="id_task_type" class="form-label">Tipo de tarea</label>
             {{ form.task_type }}
+            <div class="form-text">Selecciona el tipo de tarea para mostrar campos adicionales</div>
+            <button type="button" class="btn btn-sm btn-outline-info mt-2" onclick="testToggle()">
+                <i class="fas fa-bug"></i> Probar campos condicionales
+            </button>
         </div>
 
         <div class="mb-3" id="other-type-container" style="display:none;">
@@ -132,10 +173,20 @@
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i> Guardar tarea
         </button>
-        <a href="{% url 'worklog-list' %}" class="btn btn-secondary">
-            Cancelar
-        </a>
-    </form>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'worklog-list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar Tarea
+                        </button>
+                    </div>
+                </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
 </div>
 
 {% block extra_js %}
@@ -152,11 +203,91 @@
         contenedorGarantia.style.display = (tipo === "Taller" || tipo === "Campo") ? "block" : "none";
         contenedorCampo.style.display = (tipo === "Campo") ? "block" : "none";
     }
-
+    function toggleOtherField() {
+        const tipoSelect = document.getElementById("id_task_type");
+        const tipo = tipoSelect ? tipoSelect.value : "No encontrado";
+        const contenedorOtros = document.getElementById("other-type-container");
+        const contenedorSubtipo = document.getElementById("general-ops-subtype-container");
+        const contenedorGarantia = document.getElementById("warranty-container");
+        const contenedorCampo = document.getElementById("campo-extra-container");
+        if (contenedorOtros) contenedorOtros.style.display = (tipo === "Otros") ? "block" : "none";
+        if (contenedorSubtipo) contenedorSubtipo.style.display = (tipo === "Operaciones generales") ? "block" : "none";
+        if (contenedorGarantia) contenedorGarantia.style.display = (tipo === "Taller" || tipo === "Campo") ? "block" : "none";
+        if (contenedorCampo) contenedorCampo.style.display = (tipo === "Campo") ? "block" : "none";
+        updateDebugStatus();
+    }
+    function updateDebugStatus() {
+        const debugStatus = document.getElementById('debug-status');
+        const tipo = document.getElementById("id_task_type").value;
+        if (debugStatus) {
+            let status = `Tipo seleccionado: ${tipo || 'Ninguno'}`;
+            if (tipo === 'Otros') status += ' → Campo "Especificar otro tipo" visible';
+            else if (tipo === 'Operaciones generales') status += ' → Campo "Subtipo" visible';
+            else if (tipo === 'Taller' || tipo === 'Campo') status += ' → Campo "Garantía" visible';
+            debugStatus.textContent = status;
+        }
+    }
+    function testToggle() { toggleOtherField(); }
+    function calculateDuration() {
+        const startField = document.getElementById("id_start");
+        const endField = document.getElementById("id_end");
+        const durationDisplay = document.getElementById("duration-display");
+        const quickEndButton = document.getElementById("quick-end-time");
+        if (startField.value && endField.value) {
+            const start = new Date(startField.value);
+            const end = new Date(endField.value);
+            if (end > start) {
+                const diffMs = end - start;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                durationDisplay.textContent = `${diffHours}h ${diffMinutes}m`;
+                durationDisplay.className = "text-success fw-bold";
+                quickEndButton.style.display = "none";
+            } else {
+                durationDisplay.textContent = "Fecha de fin debe ser posterior al inicio";
+                durationDisplay.className = "text-danger fw-bold";
+                quickEndButton.style.display = "none";
+            }
+        } else if (startField.value) {
+            durationDisplay.textContent = "Selecciona fecha de fin para calcular duración";
+            durationDisplay.className = "text-warning";
+            quickEndButton.style.display = "inline-block";
+        } else {
+            durationDisplay.textContent = "--";
+            durationDisplay.className = "";
+            quickEndButton.style.display = "none";
+        }
+    }
+    function setQuickEndTime() {
+        const startField = document.getElementById("id_start");
+        const endField = document.getElementById("id_end");
+        if (startField.value) {
+            const start = new Date(startField.value);
+            const end = new Date(start.getTime() + (60 * 60 * 1000));
+            const endString = end.toISOString().slice(0, 16);
+            endField.value = endString;
+            calculateDuration();
+        }
+    }
+    function setupDateTimeHandling() {
+        const startField = document.getElementById("id_start");
+        const endField = document.getElementById("id_end");
+        const quickEndButton = document.getElementById("quick-end-time");
+        if (!startField.value) {
+            const now = new Date();
+            const nowString = now.toISOString().slice(0, 16);
+            startField.value = nowString;
+        }
+        startField.addEventListener("change", calculateDuration);
+        endField.addEventListener("change", calculateDuration);
+        quickEndButton.addEventListener("click", setQuickEndTime);
+        calculateDuration();
+    }
     document.addEventListener("DOMContentLoaded", function () {
         const tipoSelect = document.getElementById("id_task_type");
         tipoSelect.addEventListener("change", toggleOtherField);
-        toggleOtherField(); // mostrar u ocultar al cargar por si ya está seleccionado
+        toggleOtherField();
+        setupDateTimeHandling();
     });
 </script>
 {% endblock %}
